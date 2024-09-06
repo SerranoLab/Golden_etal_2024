@@ -40,7 +40,7 @@ These instructions will give you a copy of the project up and running on your lo
 -   Once the download is complete, navigate to your Downloads folder (or wherever your browser saves files) and extract the ZIP file.
 -   This will create a folder containing all the files from the repository.
 
-![Screenshot of the repo](images/repo_download.png)
+![Screenshot of the repo](R/repo_download.png)
 
 ## Reproducing the Data Analysis with [`renv`](https://rstudio.github.io/renv/) 
 
