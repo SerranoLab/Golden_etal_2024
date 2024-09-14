@@ -1,0 +1,1857 @@
+---
+title: "Nuclear Histone 3 Post translational Modification Profiling in Whole Cells using Spectral Flow Cytometry"
+subtitle: "Data Analysis"
+author: "Serrano Lab"
+affiliation: "Center for Regenerative Medicine (CReM), Department of Medicine, Boston University Chobanian & Avedisian School of Medicine"
+format: 
+  html:
+    code-link: true
+    code-fold: true
+    code-summary: "Show code"
+    code-tools: true
+    message: false
+    warning: false
+    page-layout: full 
+    output-dir: "docs"
+    toc: true
+    toc-depth: 5
+    toc-location: "body"
+    toc-expand: true
+    embed-resources: true
+css: style.css
+editor_options: 
+  chunk_output_type: console
+title-block-banner: "#82bce1"
+title-block-banner-color: "black"
+---
+
+```{r echo=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr) 
+library(viridis) 
+library(lubridate) 
+library(ggExtra) 
+library(tidyr) 
+library(readr) 
+library(dendsort) 
+library(seriation)
+library(hrbrthemes)
+library(heatmaply)
+library(ComplexHeatmap)
+library(dendextend)
+library(wesanderson)
+library(ggridges)
+library(circlize)
+library(Cairo) 
+library(svglite)
+library(downlit)
+library(xml2)
+library(stringr)
+library(viridis)
+library(ggpubr)
+library(ggstatsplot)
+library(patchwork)
+library(kableExtra)
+library(statsExpressions)
+library(colorRamp2)
+```
+
+
+
+# Background
+
+In this analysis workflow we use spectral flow cytometry to simultaneously assess histone H3 post-translational modifications (H3-PTMs) at the single-cell level, in the context of cell cycle status and cell-type-specific markers. This workflow was implemented in [BioProtocol Exchange](https://bio-protocol.org/exchange) by Golden et al., 2024 and contains supplementary figures and data analysis associated with the pre-print.
+
+## Information about biological material
+
+iPSC-derived Neuronal Progenitor Cells (NPCs) were generated using the female control line SCTi003-A (Stem Cell Technologies). NPC induction was performed with the STEMdiff SMADi Neural Induction Kit, following the manufacturer's instructions. All experiments were conducted with three biological replicates, defined in this context as NPCs induced in three independent wells. For further details on experimental design and data acquisition, please refer to [Golden et al., 2024](https://bio-protocol.org/exchange).
+
+## Information about initial data processing performed in OMIQ
+
+| **Data processing** | **Strategy**                                                                  | **Additional Information**                                                                                                                                                                                                                                                             |
+|-------------------|------------------------|--------------------------------------|
+| Scaling             | Hyperbolic arcsine (arcsinh)                                                  | [Finak et al., 2010](https://pubmed.ncbi.nlm.nih.gov/21050468/)                                                                                                                                                                                                                        |
+| Gating              | Cell QC and manual gating for comparison                                      | [Golden et al., 2024](https://bio-protocol.org/exchange)                                                                                                                                                                                                                               |
+| Subsetting          | Fully stained samples                                                         | Removal of single color controls and blanks to prevent noise in downstream analysis                                                                                                                                                                                                    |
+| Subsampling         | Random downsampling. Equal number of cells available in the Live Cells filter | [Braanker et al., 2021](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8640183/) Note: Density-dependent downsampling strategy should be tested to assess if there is loss of small cell populations due to random cell selection [Qiu, 2017](https://pubmed.ncbi.nlm.nih.gov/28234411/) |
+| Dimension Reduction | PCA                                                                           | all features                                                                                                                                                                                                                                                                           |
+| Dimension Reduction | opt-SNE                                                                       | selected features                                                                                                                                                                                                                                                                      |
+| Clustering          | FlowSOM                                                                       | selected features                                                                                                                                                                                                                                                                      |
+
+# Data analysis and visualization
+
+> The goal of this analysis is to assess H3-PTM signatures in NPCs in the context of their cell cycle status and lineage markers (PAX6 in this case).
+
+
+::: {.panel-tabset .nav-pills}
+
+## Data formatting 
+
+::: callout-note
+I named the fluorescence intensity column as mfi and it is misleading. Note that this is not the median value but the fluorescence value of each feature in each cell.
+:::
+
+
+```{r, echo=FALSE, warning=FALSE}
+# Load data
+data <- read_csv("input/data.csv", col_types = cols(event = col_number()))
+# head(data)
+
+# Shape data to long format using dplyr
+data_long <- data %>%
+gather(key = "feature", value = "mfi", -clusterid, -event)
+
+# Note: I named the fluorescence intensity column as mfi and it is misleading. Note that this is not the median value but the fluorescense value of each feature in each cell.
+
+df <- data_long 
+summary_df <- summary(df)
+# Display summary in HTML using kable
+kable(summary_df, format = "html", caption = "Summary of Data Frame")
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Z-score normalize the mfi variable
+df$mfi_z <- scale(df$mfi)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Data summary after scaling
+summary_df2 <- summary(df)
+# Display summary in HTML using kable
+kable(summary_df2, format = "html", caption = "Summary of Data Frame with scaled values")
+```
+
+
+Z-score column was added to data
+
+
+```{r, fig.align="center", fig.width=8, fig.height=6, fig.cap="Figure 1: Assessment of data scaling"}
+# Create histograms for original and normalized mfi variables
+par(mfrow = c(1,2))
+hist(df$mfi, main = "NPC", xlab = "Initial Fluorescence values")
+hist(df$mfi_z, main = "NPC", xlab = "Z-scores")
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# convert to factors
+df$feature <- factor(df$feature) #levels = feature_levels)
+df$clusterid <- factor(df$clusterid) #levels = clusterid_levels)
+df$event <- factor(df$event)
+
+# str(df)
+
+```
+
+
+
+## Heatmaps
+
+**Goal:** Assess H3-PTM values in the context of cell cycle status and markers such us cleaved-Caspase3 and PAX6. This section also aims to compare FlowSOM unsupervised clustering and manual gates.  
+
+::: callout-note
+In the context of this project (and most spectral data) the targets of the antibodies are referred to as *features*. Gates, whether manual or created through FlowSOM, are referred to as *filters*.
+:::
+
+### Initial visualization of all events within each cluster
+
+This plot allows visualization of single events in each cluster. Not included in Methods paper
+
+
+```{r echo=FALSE, warning=FALSE}
+# Data accessibility! Set color palettes that are colorblind friendly, no excuses!
+# If you want to mix and match or add more options, you can check the accessibility of your color palette with https://colororacle.org/
+
+pal1 <- c("#fc74da","#00c978","#6e2698","#c9d748","#0175e7","#007402","#db433d","#b27400") 
+pal2 <- c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d") 
+pal3 <- c("#56ae6c", "#8960b3", "#b0923b", "#ba495b") 
+pal4 <- c("#bc4862","#46c19a","#a34e97","#9fac3a","#6e6ec7","#69a150","#b55235","#c48c3e") 
+pal5 <- c("#081d58", "#41b6c4", "#1d91c0", "#225ea8", "#ffffd9", "#edf8b1", "#c7e9b4")
+pal6 <- c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d")
+
+```
+
+
+Adapted from [Heatmap for time series](https://r-graph-gallery.com/283-the-hourly-heatmap.html)
+
+
+```{r fig.align="center", fig.width=10, fig.height=6, fig.cap="Figure 2: Single cell resolution of feature MFI per cluster"}
+p <-ggplot(df,aes(event,feature,fill=mfi_z))+
+  geom_tile(color= "white",linewidth=0.000000001) + 
+  scale_fill_viridis(name="Scaled Fluorescense",
+                    alpha = 1,
+                    begin = 0,
+                    end = 1,
+                    direction = 1,
+                    discrete = FALSE,
+                    option = "C",
+                    aesthetics = "fill")
+p <-p + facet_grid(~clusterid, scales = "free", space = "free",)
+p <-p + scale_y_discrete(limits = rev(levels(df$feature)))   # Reverse the order of the factor levels for y-axis
+p <-p + scale_x_discrete(labels = NULL) 
+p <-p + theme_minimal(base_size = 8)
+p <-p + labs(title= paste("Fluorescence intentisity values of each feature by fsom cluster | NPC"), x="Event", y="Feature")
+p <-p + theme(legend.position = "bottom")+
+  theme(plot.title=element_text(size = 14))+
+  theme(axis.text.y=element_text(size=6)) +
+  theme(strip.background = element_rect(colour="white"))+
+  theme(plot.title=element_text(hjust=0))+
+  theme(axis.ticks=element_blank())+
+  theme(axis.text=element_text(size=7))+
+  theme(legend.title=element_text(size=8))+
+  theme(legend.text=element_text(size=6))+
+  theme(strip.text.x = element_text(angle = 90, hjust = 1)) +  # Rotate the cluster id labels
+  removeGrid()#ggExtra
+# you will want to expand your plot screen before this bit!
+p
+```
+
+```{r echo=FALSE, warning=FALSE}
+ggsave("output/SVG/heatmap_events_plot_1.svg", plot = p, width = 7, height = 7) #save as .svg 
+```
+
+
+### Heatmap visualization of concatenated files
+
+For this plot, we used heatmap data downloaded from OMIQ, which includes three concatenated biological replicates. To compare the resolution between FSOM clusters and manual gating, data will be plotted for both sets of filters.
+
+
+```{r echo=FALSE, warning=FALSE}
+# Load heatmap CSV file with unsupervised clusters
+df <- read.csv("input/heatmap.csv", row.names = 1) #this data only contains fsom clusters
+
+head_df <- head(df)
+# Display head in HTML using kable
+kable(head_df, format = "html", caption = "Head of Data Frame containing unsupervised clusters")
+
+
+# Load heatmap CSV file with fsom clusters and manual gates
+dfg <- read.csv("input/heatmap_gate.csv", row.names = 1) #fsom clusters AND manual gates for cell cycle and NPC
+head_df2 <- head(dfg)
+kable(head_df2, format = "html", caption = "Head of Data Frame containing manual gates and unsupervised clusters")
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# scale data
+df <- scale(df)
+dfg <- scale(dfg)
+```
+
+```{r echo=FALSE, warning=FALSE}
+# Convert the data.frame to a matrix
+df_m <- as.matrix(df)
+
+# Convert the data.frame to a matrix
+dfg_m <- as.matrix(dfg)
+
+```
+
+
+### Features MFI by fsom clusters
+
+#### Hierarchical Clustering (hclust)
+
+Initial assessment through hierarchical clustering
+
+
+```{r fig.align="center", fig.width=8, fig.height=6, fig.cap="Figure 3: Clustered heatmap. Hierarchical clustering"}
+# Define color palette 
+col_1 = colorRamp2(c(-4, 0, 4), hcl_palette = "RdYlBu", reverse = TRUE)
+col_1(seq(-4, 4))
+
+# Sort dendogram nodes
+row_dend = dendsort(hclust(dist(df_m)))
+col_dend = dendsort(hclust(dist(t(df_m))))
+
+# Plot heatmap
+h1 <- Heatmap(df_m, name = "MFI",
+              row_title_rot = 0,
+              row_names_gp = gpar(fontsize = 8),  # Set row name font size
+              column_names_gp = gpar(fontsize = 8),  # Set column name font size
+              col = col_1, 
+              rect_gp = gpar(col = "white", lwd = 0.5),
+              cluster_rows = row_dend,
+              cluster_columns = col_dend,
+              row_split = 2, column_split = 2,
+              row_gap = unit(0.5, "mm"), column_gap = unit(0.5, "mm"), border = TRUE, 
+              column_title = "MFI Values Across NPC Clusters Identified by FlowSOM | hclust",
+              column_title_gp = gpar(fontsize = 8, fontface = "bold"),
+              cell_fun = function(j, i, x, y, width, height, fill) {
+                grid.text(sprintf("%.1f", df_m[i, j]), x, y, gp = gpar(fontsize = 5)) # Add text inside cells
+              })
+
+h1
+```
+
+```{r echo=FALSE, warning=FALSE}
+#rendering to png file
+plot1 <- paste0("output/PNG/NPC_MFI_Heatmap.png")
+png(plot1, width = 5, height = 3.5, units = "in", res = 600)
+draw(h1)
+dev.off()
+
+#rendering to svg file, ensure the library Cairo and svglite loaded
+CairoSVG("output/SVG/NPC_MFI_Heatmap.svg", width = 5, height = 3.5)
+draw(h1)
+dev.off()
+```
+
+
+#### Pearson Correlation
+
+Useful to cluster data based on the correlation between features rather than their absolute differences. It’s particularly good for identifying clusters with similar expression patterns across different markers, regardless of absolute values.
+
+
+```{r fig.align="center", fig.width=8, fig.height=6, fig.cap="Figure 3: Clustered heatmap. Pearson Correlation"}
+# Define color palette 
+col_1 = colorRamp2(c(-4, 0, 4), hcl_palette = "RdYlBu", reverse = TRUE)
+col_1(seq(-4, 4))
+
+# Plot heatmap
+# Create the heatmap with Pearson correlation as the distance metric
+set.seed(135)
+h2 <- Heatmap(df_m, name = "MFI",
+              clustering_distance_rows = "pearson",  # Use Pearson correlation for row clustering
+              clustering_method_rows = "complete", # Specify the clustering method (e.g., complete linkage)
+              row_km = 4, row_km_repeats = 100,
+              row_title_rot = 0,
+              row_names_gp = gpar(fontsize = 9),  # Set row name font size
+              column_names_gp = gpar(fontsize = 9),  # Set column name font size
+              col = col_1, 
+              row_gap = unit(1, "mm"), border = TRUE, 
+              column_title = "MFI Values Across NPC Clusters Identified by FlowSOM | pearson",
+              column_title_gp = gpar(fontsize = 8, fontface = "bold"),
+              cell_fun = function(j, i, x, y, width, height, fill) {
+                grid.text(sprintf("%.1f", df_m[i, j]), x, y, gp = gpar(fontsize = 7)) # Add text inside cells
+              })
+h2
+```
+
+```{r echo=FALSE, warning=FALSE}
+#rendering to png file
+plot2 <- paste0("output/PNG/NPC_MFI_HeatmapPearson.png")
+png(plot2, width = 6, height = 4, units = "in", res = 600)
+draw(h2)
+dev.off()
+
+#rendering to svg file, ensure the library Cairo and svglite loaded
+CairoSVG("output/SVG/NPC_MFI_HeatmapPearson.svg", width = 6, height = 4)
+draw(h2)
+dev.off()
+```
+
+
+#### Features MFI in manual gates
+
+
+```{r fig.align="center", fig.width=8, fig.height=6, fig.cap="Figure 4: Clustered heatmap. Manual gates"}
+# Define color palette 
+col_fall = colorRamp2(c(-3, 0, 3), hcl_palette = "Fall")
+col_fall(seq(-4, 4))
+
+# Sort dendogram nodes
+row_dend = dendsort(hclust(dist(dfg_m)))
+col_dend = dendsort(hclust(dist(t(dfg_m))))
+
+# Plot heatmap
+h1g <- Heatmap(dfg_m, name = "MFI", 
+              col = col_fall, 
+              rect_gp = gpar(col = "white", lwd = 0.5),
+              cluster_rows = row_dend,
+              cluster_columns = col_dend,
+              row_split = 7, column_split = 2,
+              row_gap = unit(1, "mm"), column_gap = unit(1, "mm"), border = TRUE,
+              column_title = "NPC MFI by manual gating | hclust")
+
+h1g
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+#rendering to png file
+plot1g <- paste0("output/PNG/NPC_MFI_Heatmapg.png")
+png(plot1g, width = 7, height = 5, units = "in", res = 300)
+draw(h1g)
+dev.off()
+
+#rendering to svg file, ensure the library Cairo and svglite loaded
+CairoSVG("output/SVG/NPC_MFI_Heatmapg.svg", width = 7, height = 7)
+draw(h1g)
+dev.off()
+```
+
+
+## Circular barplot
+
+This data viz strategy aims to highlight the contributions of each feature to different filters (aka clusters). 
+
+### Prepare data 
+
+
+```{r}
+# Prepare data
+cbp <- data_long
+
+
+# Convert relevant columns to factors
+cbp <- cbp %>%
+  mutate(
+    feature = factor(feature),
+    clusterid = factor(clusterid),
+    event = factor(event),
+    mfi_shifted = mfi + abs(min(mfi)) + 1  # Shift MFI (not scaled) values to avoid negatives
+  )
+
+summary_cbp <- summary(cbp)
+kable(summary_cbp, format = "html", caption = "Summary of data containing shifted values")
+
+```
+
+
+### Features contributions to each cluster
+
+To assess circular barplots for all clusters, please go to the output folder.
+
+
+```{r echo=FALSE, warning=FALSE}
+generate_cluster_calculations <- function(cbp) {
+  calculations_list <- list()  # Initialize an empty list to store results
+
+  # Loop over each cluster
+  for (i in 1:10) {
+    cluster_name <- paste0("fsom_", sprintf("%02d", i))
+    
+    # Filter data for the current cluster
+    cluster_data <- cbp %>% filter(clusterid == cluster_name)
+    
+    # Calculate summary statistics for each feature within the cluster
+    cbp_calculations <- cluster_data %>%
+      group_by(feature) %>%
+      summarise(
+        sum_mfi = sum(mfi_shifted),
+        min_mfi = min(mfi_shifted),
+        max_mfi = max(mfi_shifted),
+        range_mfi = max(mfi_shifted) - min(mfi_shifted),
+        median_mfi = median(mfi_shifted),
+        n = n()
+      )
+    
+    # Store the calculations in the list with a name corresponding to the cluster
+    calculations_list[[cluster_name]] <- cbp_calculations
+    
+    # Optionally, assign the data frame to a variable in the global environment
+    assign(paste0("cbp_calculations_", cluster_name), cbp_calculations, envir = .GlobalEnv)
+  }
+
+  return(calculations_list)
+}
+
+# Example usage
+# Assuming `cbp` is your dataframe:
+calculations_list <- generate_cluster_calculations(cbp)
+
+# This will create variables cbp_calculations_fsom01 to cbp_calculations_fsom10
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+# For the next 3 chunks of code, you'll have to change the input file based on cluster and adjust parameters based on max_mfi of each cluster...annoying. If you know how to make a function that will adjust these things automatically, please feel free to let me know and modify this code.
+# Get the range of sum_mfi to determine appropriate y-intercepts per cluster
+y_max <- max(cbp_calculations_fsom_02$max_mfi) #Change this for fsom_n
+
+# Plot
+cbp <- ggplot(cbp_calculations_fsom_02) + #change this for fsom_n
+  geom_hline(
+    aes(yintercept = y), 
+    data.frame(y = seq(0, y_max, by = y_max / 8.39)),  #change this last number to the highest max_mfi value or round up value of the data
+    color = "lightgrey"
+  ) +
+  geom_col(
+    aes(
+      x = reorder(str_wrap(feature, 5), max_mfi),
+      y = max_mfi,
+      fill = feature),
+    position = "dodge2",
+    show.legend = TRUE,
+    alpha = .9)  +
+  geom_segment(
+    aes(
+      x = reorder(str_wrap(feature, 5), min_mfi),
+      y = 0,
+      xend = reorder(str_wrap(feature, 5), max_mfi),
+      yend = max_mfi),
+    linetype = "dashed",
+    color = "gray12"
+  ) + 
+  geom_point(
+    aes(
+      x = reorder(str_wrap(feature, 5), median_mfi),
+      y = median_mfi 
+    ),
+    size = 2,
+    color = "gray12"
+  ) +
+  coord_polar() +
+  labs(title = "Contribution of each feature in cluster fsom 10", #change the title for correct cluster id
+       x = "Feature",
+       y = "MFI (Median Fluorescence Intensity)") 
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+cbp1 <- cbp +
+  # Annotate the bars and the lollipops so the reader understands the scaling
+  annotate(
+    x = 9.1, 
+    y = 4.5,
+    label = "Adjusted MFI",
+    geom = "text",
+    angle = -71,
+    color = "gray12",
+    size = 3.5
+  ) +
+  annotate(
+    x = 9, 
+    y = 8.8, #change this to a number between 9.2 and the max_mfi of the cluster 
+    label = "Max MFI",
+    geom = "text",
+    angle = 19,
+    color = "gray12",
+    size = 3.5
+  ) +
+  # Annotate custom scale inside plot
+  annotate(
+    x = 9.5, 
+    y = 2, 
+    label = "2", 
+    geom = "text", 
+    color = "gray12"
+  ) +
+  annotate(
+    x = 9.5, 
+    y = 4, 
+    label = "4", 
+    geom = "text", 
+    color = "gray12"
+  ) +
+  annotate(
+    x = 9.5, 
+    y = 6, 
+    label = "6", 
+    geom = "text", 
+    color = "gray12"
+  ) +
+  annotate(
+    x = 9.5, 
+    y = 8, 
+    label = "8", 
+    geom = "text", 
+    color = "gray12"
+  ) +
+  #  annotate(
+  #   x = 9.5,
+  #   y = 10,
+  #   label = "10",
+  #   geom = "text",
+  #   color = "gray12"
+  # ) +
+  # Scale y axis so bars don't start in the center
+  scale_y_continuous(
+    limits = c(-2, 9), # Max max_mfi value here
+    expand = c(0, 0),
+    breaks = c(0, 2, 4, 6, 8)
+  ) + 
+  # New fill and legend title for number of tracks per region
+  scale_fill_manual(
+    "MFI",
+    values = c(
+  "#4E79A7",  # Blue
+  "#F28E2B",  # Orange
+  "#E15759",  # Red
+  "#76B7B2",  # Cyan
+  "#59A14F",  # Green
+  "#EDC949",  # Yellow
+  "#B07AA1",  # Purple
+  "#FF9DA7",  # Pink
+  "#9C755F"   # Brown
+    ) # Tried to make this palette as accessible as possible but it is not perfect. Please leave the labels of each bar to increase accessibility.
+  ) +
+  # Make the guide for the fill discrete
+  guides(
+    fill = guide_legend(
+      title.position = "top",
+      title.hjust = .5
+    )
+  ) +
+  theme(
+    # Remove axis ticks and text
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text.y = element_blank(),
+    # Use gray text for the region names
+    axis.text.x = element_text(color = "gray12", size = 11),
+    # Move the legend to the bottom
+    legend.position = "bottom",
+  )
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+cbp2 <- cbp1 + 
+  # Add labels
+  labs(
+    title = "\nContribution of individual features to cluster fsom 02",
+    subtitle = paste(
+      "\nMFI values were shifted to ensure positivity, then summarized",
+      "by feature within each cluster, displaying maximum, minimum, and median MFI values.\n",
+      sep = "\n"
+  )) +
+  # Customize general theme
+  theme(
+    
+    # Set default color and font family for the text
+    text = element_text(color = "gray12"),
+    
+    # Customize the text in the title, subtitle, and caption
+    plot.title = element_text(face = "bold", size = 12, hjust = 0),
+    plot.subtitle = element_text(size = 8, hjust = 0),
+    
+    # Make the background white and remove extra grid lines
+    panel.background = element_rect(fill = "white", color = "white"),
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
+# Use `ggsave("plot.png", plt, width=9, height=12.6)` to save it as in the output
+
+ggsave("output/PNG/Circular bar plots/bar_plot_fsom02.png", cbp2,width=9, height=12.6)
+ggsave(filename = "output/SVG/Circular bar plots/bar_plot_fsom02.svg", plot = cbp2, width = 9, height = 12.6)
+```
+
+```{r echo=FALSE, out.width='100%', fig.align='center', fig.cap="Figure 5: Features' contribution to fsom clusters"}
+# List of image paths
+image_paths <- c(
+  "output/PNG/Circular bar plots/bar_plot_fsom01.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom02.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom03.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom04.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom05.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom06.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom07.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom08.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom09.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom10.png"
+)
+
+# Render images
+knitr::include_graphics(image_paths)
+
+``` 
+
+
+## Correlation plots
+
+**Goal:** Assessment of possible correlations between cell cycle progression, DNA content, H3 content and lineage markers
+
+### Correlation between phS10-H3 and DNA content
+
+Goal: Assess phS10H3 and DNA content dynamics
+
+
+```{r fig.align="center", fig.width=16, fig.height=18, fig.cap="Figure 6: Correlation plots for exploratory analysis of features correlation"}
+crp <- data # bring back data without re-shaping to long format
+
+# filter features of interest
+filtered_data <- crp %>%
+  select(FxCycle, phH3_S10, `Total H3`, clusterid, PAX6) %>%
+  rename(H3 = `Total H3`)
+
+# Step 1: Calculate mean PAX6 intensity and correlation for each cluster
+cluster_stats <- filtered_data %>%
+  group_by(clusterid) %>%
+  summarize(mean_PAX6 = mean(PAX6, na.rm = TRUE),
+            correlation = cor(FxCycle, phH3_S10, method = "pearson")) %>%
+  arrange(desc(mean_PAX6), correlation)  # Sort by mean PAX6 (descending) and then by correlation
+
+# Step 2: Reorder the clusterid factor based on combined ordering
+filtered_data <- filtered_data %>%
+  mutate(clusterid = factor(clusterid, levels = cluster_stats$clusterid))
+
+# Step 3: Merge the correlation data with the filtered data
+filtered_data <- filtered_data %>%
+  left_join(cluster_stats, by = "clusterid")
+
+# Step 4: Create the plot with the Pearson correlation as a label inside each facet
+bub1 <- filtered_data %>%
+  arrange(desc(H3)) %>%
+  ggplot(aes(x = FxCycle, y = phH3_S10, size = H3, fill = PAX6)) +
+    geom_point(alpha = 0.4, shape = 21, color = "black") +  # Black contour with shape 21
+    scale_size(range = c(-1, 5), name = "H3 Fluorescence") + 
+    scale_fill_viridis_c(option = "D", name = "PAX6 Intensity") +  # Fill by PAX6 intensity
+    theme_ipsum() +
+    labs(
+      title="Correlation between DNA content and Phospho S10 H3",
+      subtitle="Clusters are ordered by PAX6 intensity and Pearson correlation value",
+       ) +
+    theme(legend.position = "bottom",
+          panel.background = element_rect(fill = "white", color = "white"),
+          panel.border = element_rect(fill = NA, color = "darkgray"),
+          plot.background = element_rect(fill = "white", color = "white"),
+          panel.grid = element_blank(),
+          panel.grid.major = element_blank()
+       ) +
+    ylab("Phospho H3 S10 Fluorescence") +
+    xlab("FxCycle (DNA Content)") +
+    facet_wrap(~ clusterid) +  # Use scales="free" to adjust each facet independently
+    geom_text(aes(label = sprintf("r = %.2f", correlation)),
+              x = -Inf, y = Inf, hjust = -0.1, vjust = 1.1, size = 3, color = "black")
+
+bub1
+
+ggsave("output/PNG/correlation_plot1.png", bub1,width=14, height=12)
+ggsave(filename = "output/SVG/correlation_plot1.svg", plot = bub1, width = 14, height = 12)
+
+```
+
+
+### Correlation between lineage marker and Caspase-3
+
+Background: [Caspase activity mediates the differentiation of embryonic stem cells](https://pubmed.ncbi.nlm.nih.gov/18522852/)
+
+
+```{r fig.align="center", fig.width=16, fig.height=18, fig.cap="Figure 7: Correlation plots for exploratory analysis of features correlation"}
+crp2 <- data # bring back data without re-shaping to long format
+
+# filter features of interest
+filtered_data2 <- crp2 %>%
+  select(FxCycle, phH3_S10, Caspase3, clusterid, PAX6)
+
+# Step 1: Calculate mean PAX6 intensity and correlation for each cluster
+cluster_stats2 <- filtered_data2 %>%
+  group_by(clusterid) %>%
+  summarize(mean_FxCycle = mean(FxCycle, na.rm = TRUE),
+            correlation = cor(Caspase3, PAX6, method = "pearson")) %>%
+  arrange(desc(mean_FxCycle), correlation)  # Sort by mean PAX6 (descending) and then by correlation
+
+# Step 2: Reorder the clusterid factor based on combined ordering
+filtered_data2 <- filtered_data2 %>%
+  mutate(clusterid = factor(clusterid, levels = cluster_stats2$clusterid))
+
+# Step 3: Merge the correlation data with the filtered data
+filtered_data2 <- filtered_data2 %>%
+  left_join(cluster_stats2, by = "clusterid")
+
+# Step 4: Create the plot with the Pearson correlation as a label inside each facet
+bub2 <- filtered_data2 %>%
+  arrange(desc(phH3_S10)) %>%
+  ggplot(aes(x = PAX6, y = Caspase3, size = FxCycle, fill = phH3_S10)) +
+    geom_point(alpha = 0.4, shape = 21, color = "black") +  # Black contour with shape 21
+    scale_size(range = c(-1, 5), name = "Cell Cycle") + 
+    scale_fill_viridis_c(option = "D", name = "Mitosis | phH3_S10") +  
+    theme_ipsum() +
+    labs(
+      title="Correlation between lineage commitment marker and cleaved-Caspase3",
+      subtitle="Clusters are ordered by FxCycle intensity and Person correlation value",
+       ) +
+    theme(legend.position = "bottom",
+          panel.background = element_rect(fill = "white", color = "white"),
+          panel.border = element_rect(fill = NA, color = "darkgray"),
+          plot.background = element_rect(fill = "white", color = "white"),
+          panel.grid = element_blank(),
+          panel.grid.major = element_blank()
+       ) +
+    ylab("Cleaved-Caspase3 Fluorescence") +
+    xlab("PAX6 Fluorescense") +
+    facet_wrap(~ clusterid) +  # Use scales="free" to adjust each facet independently
+    geom_text(aes(label = sprintf("r = %.2f", correlation)),
+              x = -Inf, y = Inf, hjust = -0.1, vjust = 1.1, size = 3, color = "black")
+
+bub2
+
+ggsave("output/PNG/correlation_plot2.png", bub2,width=14, height=12)
+ggsave(filename = "output/SVG/correlation_plot2.svg", plot = bub2, width = 14, height = 12)
+
+```
+
+
+## Distribution plots
+
+**Goal:** Assessment of the distributions of each H3-PTM within clusters.
+
+From [R Gallery](https://r-graph-gallery.com/135-stacked-density-graph.html)
+
+### Density plots
+
+#### Density plots for fsom clusters
+
+
+```{r echo=FALSE, warning=FALSE}
+#bring back data long, scale and check that it is the correct object
+df <- data_long
+df$mfi_z <- scale(df$mfi)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# convert to factors
+df$feature <- factor(df$feature) #levels = feature_levels)
+df$clusterid <- factor(df$clusterid) #levels = clusterid_levels)
+```
+
+```{r fig.cap="Figure 8: Density plots of H3-PTM in NPC per cluster"}
+
+# Represent all density plots in the same axis
+d1 <- df %>%
+  filter(feature %in% c("H3K9ac", "H3K14ac", "H3K27ac", "H3K4me3")) %>% 
+  ggplot( aes(x=mfi_z, fill=feature)) +
+    geom_density( color="#e9ecef", alpha=0.6) +
+    scale_fill_manual(values=pal2) +
+   facet_wrap(~clusterid, ncol = 3, scales = "free_y") +
+  labs(title = "Density Plots: Feature distribution per cluster", x = "Scaled Fluorescence", y = "Density") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+    plot.title = element_text(size = 12, hjust = 0),
+    axis.text.y = element_text(size = 8),
+    axis.ticks = element_blank(),
+    axis.text = element_text(size = 8),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.5, "lines"),  # Reduce size of boxes in legend
+    panel.spacing = unit(0.05, "lines"),
+    panel.grid = element_blank(),
+    strip.text = element_text(size = 8)) +
+  labs(fill = "Features")
+ggsave("output/PNG/density_plot_1.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/density_plot_1.svg", plot = d1, width = 7, height = 7)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Turn it interactive with ggplotly, specifying the size
+d1b <- ggplotly(d1, width = 1200, height = 800)
+
+d1b
+```
+
+
+#### Density plots for manual gates
+
+
+```{r, echo=FALSE, warning=FALSE}
+#load data for manual gates
+datag <- read_csv("input/data_fsom_manual.csv", col_types = cols(event = col_number()))
+
+#shape data to long format using dplyr
+datag_long <- datag %>%
+gather(key = "feature", value = "mfi", -clusterid, -event)
+head(datag_long)
+dfg <- datag_long 
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+#bring back data long, scale and check that it is the correct object
+dfg <- datag_long
+dfg$mfi_z <- scale(dfg$mfi)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# convert to factors
+dfg$feature <- factor(dfg$feature) #levels = feature_levels)
+dfg$clusterid <- factor(dfg$clusterid) #levels = clusterid_levels)
+```
+
+```{r fig.cap="Figure 6: NPC density plots"}
+
+# Represent all density plots in the same axis
+d1g <- dfg %>%
+  filter(feature %in% c("H3K9ac", "H3K14ac", "H3K27ac", "H3K4me3")) %>% 
+  ggplot( aes(x=mfi_z, fill=feature)) +
+    geom_density( color="#e9ecef", alpha=0.6) +
+    scale_fill_manual(values=pal2) +
+   facet_wrap(~clusterid, ncol = 3, scales = "free_y") +
+  labs(title = "Density Plots: Feature distribution per cluster", x = "Scaled Fluorescence", y = "Density") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+    plot.title = element_text(size = 12, hjust = 0),
+    axis.text.y = element_text(size = 8),
+    axis.ticks = element_blank(),
+    axis.text = element_text(size = 8),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.5, "lines"),  # Reduce size of boxes in legend
+    panel.spacing = unit(0.05, "lines"),
+    panel.grid = element_blank(),
+    strip.text = element_text(size = 8)) +
+  labs(fill = "Features")
+ggsave("output/PNG/density_gate_plot_1.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/density_gate_plot_1.svg", plot = d1, width = 7, height = 7)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Turn it interactive with ggplotly, specifying the size
+d1bg <- ggplotly(d1g, width = 1200, height = 800)
+
+d1bg
+```
+
+
+### Histograms
+
+From [R Gallery](https://r-graph-gallery.com/histogram_several_group.html)
+
+Histograms allow direct visualization of cell count. 
+
+#### Histograms for fsom clusters
+
+
+```{r}
+histogram1 <- df %>%
+  filter(feature %in% c("H3K9ac", "H3K14ac", "H3K27ac", "H3K4me3")) %>%
+  ggplot(aes(x = mfi, fill = feature)) +
+  geom_histogram(binwidth = 0.2, color = "#e9ecef", alpha = 0.6, position = 'identity') +
+  scale_fill_manual(values = c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d")) +
+  facet_wrap(~clusterid, ncol = 3, scales = "free_y") +
+  labs(title = "Histograms: Feature distribution per cluster", x = "Fluorescence", y = "Cell count") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+    plot.title = element_text(size = 12, hjust = 0),
+    axis.text.y = element_text(size = 6),
+    axis.ticks = element_blank(),
+    axis.text = element_text(size = 7),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.5, "lines"),  # Reduce size of boxes in legend
+    panel.spacing = unit(0.05, "lines"),
+    panel.grid = element_blank(),
+    strip.text = element_text(size = 8)) +
+  labs(fill = "Features")
+ggsave("output/PNG/histogram_plot_1.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/histogram_plot_1.svg", plot = histogram1, width = 7, height = 7)
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Turn it interactive with ggplotly, specifying the size
+histogram1b <- ggplotly(histogram1 , width = 1200, height = 800)
+
+histogram1b
+```
+
+
+#### Histograms for manual gates and fsom clusters
+
+
+```{r}
+histogram_gates <- dfg %>%
+  filter(feature %in% c("H3K9ac", "H3K14ac", "H3K27ac", "H3K4me3")) %>%
+  ggplot(aes(x = mfi, fill = feature)) +
+  geom_histogram(binwidth = 0.2, color = "#e9ecef", alpha = 0.6, position = 'identity') +
+  scale_fill_manual(values = c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d")) +
+  facet_wrap(~clusterid, ncol = 3, scales = "free_y") +
+  labs(title = "Histograms: Feature distribution per manual cluster", x = "Fluorescence", y = "Cell count") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+    plot.title = element_text(size = 12, hjust = 0),
+    axis.text.y = element_text(size = 6),
+    axis.ticks = element_blank(),
+    axis.text = element_text(size = 7),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.5, "lines"),  # Reduce size of boxes in legend
+    panel.spacing = unit(0.05, "lines"),
+    panel.grid = element_blank(),
+    strip.text = element_text(size = 8)) +
+  labs(fill = "Features")
+ggsave("output/PNG/histogram_gates_plot_1.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/histogram_gates_plot_1.svg", plot = histogram_gates, width = 7, height = 7)
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Turn it interactive with ggplotly, specifying the size
+histogram_g <- ggplotly(histogram_gates , width = 1200, height = 800)
+
+histogram_g 
+```
+
+
+## Statistical analysis
+
+### Violin plots
+
+**Goal:** To assess the distribution of features, median fluorescence intensity values, and effect sizes within each fsom cluster
+
+To make this plots I used [ggstatsplot](https://indrajeetpatil.github.io/ggstatsplot/index.html). I have to admit this package has my favorite vignette of all times.
+
+
+```{r, echo=FALSE, warning=FALSE, fig.align='center', out.width='100%', fig.width=10, fig.height=6}
+
+generate_cluster_plots <- function(df, output_dir) {
+  # Ensure the output directory exists
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+  }
+  
+  # Define all cluster IDs
+  cluster_ids <- paste0("fsom_", sprintf("%02d", 1:10))
+  
+  # Create a list to hold the plots
+  plot_list <- list()
+  
+  # Loop over each cluster ID and generate the plot
+  for (clusterid in cluster_ids) {
+    plot <- df %>%
+      filter(clusterid == !!clusterid) %>%
+      filter(feature %in% c("FxCycle", "phH3_S10", "H3K9ac", "H3K14ac", "H3K27ac", "H3K4me3")) %>%
+      ggbetweenstats(
+        x = feature,
+        y = mfi_z,
+        type = "np",  # Non-parametric test
+        pairwise.display = "none", # Display only significant pairwise comparisons
+        p.adjust.method = "fdr", 
+        p.value.args = list(digits = 4), # Adjust p-values for multiple tests using this method
+        results.subtitle = TRUE,
+        ggplot.component = list(
+      scale_color_manual(values = c("#bc4862", "#8650a6",  "#ac9c3d", "#6881d8",  "#ba543d", "#46c19a")))
+      ) +
+      # Add labels and title
+      labs(
+        x = "Feature",
+        y = "Scaled Fluorescence Intensity",
+        title = paste("Feature distribution in cluster:", clusterid)
+      ) + 
+      theme( # Customizations
+        text = element_text(family = "Times New Roman", size = 8, color = "black"),
+        plot.title = element_text(
+          family = "Times New Roman", 
+          size = 12,
+          face = "bold",
+          color = "#2a475e"
+        ),
+        plot.subtitle = element_text(
+          family = "Times New Roman", 
+          size = 8, 
+          face = "bold",
+          color = "#1b2838"
+        ),
+        plot.title.position = "plot",
+        axis.text = element_text(size = 8, color = "black"),
+        axis.title = element_text(size = 8),
+        axis.ticks = element_blank(),
+        axis.line = element_line(colour = "grey50"),
+        panel.grid = element_line(color = "#b4aea9"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(linetype = "dashed"),
+        panel.background = element_rect(fill = "white", color = "white"),
+        plot.background = element_rect(fill = "white", color = "white")
+      )
+    
+    # Add the plot to the list
+    plot_list[[clusterid]] <- plot
+    
+    # Save the individual plot as PNG
+    ggsave(
+      filename = file.path(output_dir, paste0("violin_spec_plot_custom_", clusterid, ".png")),
+      plot = plot,
+      width = 20, height = 10, units = "cm", dpi = 600
+    )
+    
+    # Save the individual plot as SVG
+    ggsave(
+      filename = file.path(output_dir, paste0("violin_spec_plot_custom_", clusterid, ".svg")),
+      plot = plot,
+     width = 20, height = 12, units = "cm"
+    )
+    # Print the plot to ensure it appears in the HTML report
+    print(plot)
+  }
+  
+  # Combine all plots into a grid with 7 rows
+  combined_plot <- wrap_plots(plot_list, nrow = 7)
+  
+  # Save the combined plot as PNG
+  ggsave(
+    filename = file.path(output_dir, "combined_violin_plots.png"),
+    plot = combined_plot,
+    width = 30, height = 55, units = "cm", dpi = 600
+  )
+  
+  # Save the combined plot as SVG
+  ggsave(
+    filename = file.path(output_dir, "combined_violin_plots.svg"),
+    plot = combined_plot,
+    width = 30, height = 55, units = "cm"
+  )
+}
+
+# Example usage:
+output_directory <- "output/feature_violin_plots"
+generate_cluster_plots(df, output_directory)
+
+```
+
+
+### Pairwise comparisons
+
+Extracting pairwise comparisons (post-hoc test = Dunn)
+
+
+```{r pairwise-comparisons, echo=FALSE, results='asis'}
+# ----------------------- non-parametric -----------------------------------
+# Function to run pairwise comparisons for each cluster
+run_pairwise_comparisons <- function(df, cluster_name) {
+  df_filtered <- df %>%
+    filter(clusterid == cluster_name) %>%
+    filter(feature %in% c("FxCycle", "phH3_S10", "H3K9ac", "H3K14ac", "H3K27ac", "H3K4me3"))
+  
+  pairwise_results <- ggstatsplot::pairwise_comparisons(
+    data = df_filtered,
+    x = feature, 
+    y = mfi,
+    type = "np",  
+    p.adjust.method = "fdr"
+  )
+  
+  # Add a column for significance compared to the threshold of 0.05
+  pairwise_results <- pairwise_results %>%
+    mutate(
+      ClusterID = cluster_name,
+      Significance = case_when(
+        p.value == 0.05 ~ "Equal to 0.05",
+        p.value < 0.05 ~ "Less than 0.05",
+        p.value > 0.05 ~ "More than 0.05"
+      )
+    )
+  
+  return(pairwise_results)
+}
+
+# List of clusters
+clusters_to_analyze <- paste0("fsom_", sprintf("%02d", 1:10))
+
+# Run pairwise comparisons
+results_list <- lapply(clusters_to_analyze, function(clusterid) run_pairwise_comparisons(df, clusterid))
+
+# Combine results
+combined_results <- bind_rows(results_list)
+
+# Display results
+kable(combined_results, format = "html", caption = "Pairwise Comparisons of Selected Features per Cluster") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#6e6ec7")
+
+
+```
+
+
+## Method Validations
+
+### Gating Strategies
+
+**Goal:** Compare gating strategies to assess whether H3 biogenesis through cell cycle is driving differences in H3-PTMs
+
+**Data with manual gates** \* Gating strategy 1: NPC -\> cell Cycle phase -\> H3-PTM \* Gating strategy 2: NPC -\> cell Cycle phase -\> Total H3 -\> H3-PTM
+
+::: callout-gradient
+::: callout-note
+When exporting from OMIQ, it's important to export data filter by filter so that no events are dropped.
+:::
+:::
+
+
+```{r, echo=FALSE, warning=FALSE}
+#load data
+H3data <- read_csv("input/data_filter_combined.csv")
+
+
+#shape data to long format using dplyr
+
+h3_long <- H3data %>%
+gather(key = "feature", value = "mfi", -clusterid)
+
+head_h3_long <- summary(h3_long)
+# Display summary in HTML using kable
+kable(head_h3_long, format = "html", caption = "Head of Data Frame")
+
+H3 <- h3_long
+n_cluster <- table(H3$clusterid) #check if this makes any sense
+kable(n_cluster, format = "html", caption = "Assess number of events in each gate")
+
+# str(H3)
+
+
+# Convert clusterid to factor with the desired levels
+H3$clusterid <- factor(H3$clusterid, levels = c("NPC/G0_G1", "NPC/G0_G1/H3", "NPC/G2", "NPC/G2/H3", "NPC/M", "NPC/M/H3"))
+
+# Convert feature to factor
+H3$feature <- factor(H3$feature)
+
+# Check the first few rows to confirm the changes
+#head(H3)
+
+#summary(H3$mfi)
+#any(is.na(H3$mfi))    # Check for NA values
+#any(is.infinite(H3$mfi))
+```
+
+
+::: callout-note
+Plots should be generated comparing cluster strategies on x,  mfi values on y and one plot per feature.
+:::
+
+
+```{r, fig.align='center', out.width='100%', fig.width=10, fig.height=6}
+generate_cluster_plots <- function(H3, output_dir) {
+  # Ensure the output directory exists
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+  }
+  
+  # Use actual feature names from the data
+  feature_id <- unique(H3$feature)
+  
+  # Create a list to hold the plots
+  plot_list_2 <- list()
+  
+  # Loop over each feature and generate the plot
+  for (feature in feature_id) {
+    plot_2 <- H3 %>%
+      filter(feature == !!feature) %>%
+      ggbetweenstats(
+        x = clusterid,
+        y = mfi,
+        type = "np",  # Non-parametric test
+        pairwise.display = "none", # Display only significant pairwise comparisons
+        p.adjust.method = "fdr", 
+        p.value.args = list(digits = 4), # Adjust p-values for multiple tests using this method
+        results.subtitle = TRUE,
+        ggplot.component = list(
+      scale_color_manual(values = c("#b8553c","#46c19a","#b84c7d","#6da24d","#7f62b8","#bd9d3c")))
+      ) +
+      # Add labels and title
+      labs(
+        x = "Gating Strategy",
+        y = "Fluorescence Intensity",
+        title = paste("Gating strategy comparison for:", feature)
+      ) + 
+      theme( # Customizations
+        text = element_text(family = "Times New Roman", size = 8, color = "black"),
+        plot.title = element_text(
+          family = "Times New Roman", 
+          size = 12,
+          face = "bold",
+          color = "#2a475e"
+        ),
+        plot.subtitle = element_text(
+          family = "Times New Roman", 
+          size = 8, 
+          face = "bold",
+          color = "#1b2838"
+        ),
+        plot.title.position = "plot",
+        axis.text = element_text(size = 8, color = "black"),
+        axis.title = element_text(size = 8),
+        axis.ticks = element_blank(),
+        axis.line = element_line(colour = "grey50"),
+        panel.grid = element_line(color = "#b4aea9"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(linetype = "dashed"),
+        panel.background = element_rect(fill = "white", color = "white"),
+        plot.background = element_rect(fill = "white", color = "white")
+      )
+    
+    # Add the plot to a list
+    plot_list_2[[feature]] <- plot_2
+  
+    
+    # Save the individual plot as PNG
+    ggsave(
+      filename = file.path(output_dir, paste0("gate_h3_violin_plot_", feature, ".png")),
+      plot = plot_2,
+      width = 20, height = 12, units = "cm", dpi = 600
+    )
+    
+    # Save the individual plot as SVG
+    ggsave(
+      filename = file.path(output_dir, paste0("gate_h3_violin_plot_", feature, ".svg")),
+      plot = plot_2,
+      width = 20, height = 12, units = "cm"
+    )
+      print(plot_2)
+  }
+  
+  # Combine all plots into a grid with 5 rows (or adjust as needed)
+  combined_plot_2 <- wrap_plots(plot_list_2, nrow = 5)
+  
+  # Save the combined plot as PNG
+  ggsave(
+    filename = file.path(output_dir, "combined_h3_gate_violin_plots.png"),
+    plot = combined_plot_2,
+    width = 40, height = 50, units = "cm", dpi = 600
+  )
+  
+  # Save the combined plot as SVG
+  ggsave(
+    filename = file.path(output_dir, "combined_h3_gate_violin_plots.svg"),
+    plot = combined_plot_2,
+    width = 40, height = 50, units = "cm"
+  )
+}
+
+# Example usage:
+output_directory <- "output/gate_violin_plots"
+generate_cluster_plots(H3, output_directory)
+
+
+```
+
+
+#### Pairwise comparison stats
+
+
+```{r, echo=FALSE, warning=FALSE}
+# Define the function to generate the plot and extract pairwise comparison stats
+create_custom_plot <- function(H3, feature_name) {
+  # Filter data for the specified feature
+  H3_filtered <- H3 %>%
+    filter(feature == feature_name)
+
+  # Create the plot without displaying stats on the plot
+  plot <- ggbetweenstats(
+    data = H3_filtered,
+    x = clusterid, 
+    y = mfi,
+    type = "np",
+    pairwise.display = "none",
+    p.adjust.method = "fdr",  # Adjust p-values for multiple comparisons
+    p.value.args = list(digits = 4),  # Ensure p-values are displayed with 4 decimal places
+    results.subtitle = TRUE  # Remove stats from the plot
+  ) +
+    # Add labels and title
+    labs(
+      x = "Gating Strategy",
+      y = paste(feature_name, "Fluorescence Intensity"),
+      title = paste("Gating strategy comparison for:", feature_name)
+    ) + 
+    # Customizations
+    theme(
+      text = element_text(family = "Times New Roman", size = 8, color = "black"),
+      plot.title = element_text(
+        family = "Times New Roman", 
+        size = 12,
+        face = "bold",
+        color = "#2a475e"),
+      plot.subtitle = element_text(
+        family = "Times New Roman", 
+        size = 7, 
+        face = "bold",
+        color="#1b2838"),
+      plot.title.position = "plot",
+      axis.text = element_text(size = 10, color = "black"),
+      axis.title = element_text(size = 10),
+      axis.ticks = element_blank(),
+      axis.line = element_line(colour = "grey50"),
+      panel.grid = element_line(color = "#b4aea9"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.grid.major.y = element_line(linetype = "dashed"),
+      panel.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4"),
+      plot.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4")
+    )
+  
+  # Extract pairwise comparison results using pairwise_comparisons function
+  pairwise_results <- ggstatsplot::pairwise_comparisons(
+    data = H3_filtered,
+    x = clusterid, 
+    y = mfi,
+    type = "np",  # Non-parametric test
+    p.adjust.method = "fdr"  # Adjust p-values for multiple comparisons
+  )
+  
+  return(list(plot = plot, pairwise_results = pairwise_results))
+}
+
+# List of features you want to plot
+features_to_plot <- c("H3K27ac", "H3K9ac", "H3K14ac", "H3K4me3", "PAX6", "Total H3", "phH3_S10", "FxCycle")
+
+# Generate the plots and stats for your features
+results_list <- lapply(features_to_plot, function(feature) create_custom_plot(H3, feature))
+
+# Extract plots and pairwise results
+plots <- lapply(results_list, function(result) result$plot)
+pairwise_stats <- lapply(results_list, function(result) result$pairwise_results)
+
+
+```
+
+```{r, echo=FALSE}
+# Define the function to add a significance column to the pairwise results
+add_significance_column <- function(pairwise_results, feature_name, threshold = 0.05) {
+  # Check if required columns for filtering exist
+  if (!all(c("group1", "group2", "p.value") %in% colnames(pairwise_results))) {
+    warning(paste("Required columns 'group1', 'group2', or 'p.value' not found in the pairwise results for", feature_name))
+    return(NULL)
+  }
+  
+  # Filter for specific comparisons
+  filtered_results <- pairwise_results %>%
+    filter(
+      (group1 == "NPC/G0_G1" & group2 == "NPC/G0_G1/H3") |
+      (group1 == "NPC/G2" & group2 == "NPC/G2/H3") |
+      (group1 == "NPC/M" & group2 == "NPC/M/H3")
+    ) %>%
+    # Add a column indicating if p-value is significant using custom logic
+    mutate(
+      p_comparison = case_when(
+        p.value == threshold ~ paste0("Equal to ", threshold),
+        p.value < threshold  ~ paste0("Less than ", threshold),
+        p.value > threshold  ~ paste0("More than ", threshold)
+      )
+    ) %>%
+    # Arrange results by group1 for clarity
+    arrange(group1)
+  
+  # Return the table with the feature name included as a title
+  return(list(feature = feature_name, table = filtered_results))
+}
+
+# For some reason ktable does not print well in the html report when I add it in a list and inside the function so I'll go old school here
+
+# Apply the function to each feature's pairwise results
+significance_tables <- mapply(add_significance_column, pairwise_stats, features_to_plot, SIMPLIFY = FALSE)
+
+# Filter out NULL results (in case of warnings)
+significance_tables <- significance_tables[!sapply(significance_tables, is.null)]
+
+# Create and store each table in individual variables
+T1 <- kable(
+  significance_tables[[1]]$table, 
+  caption = paste("Pairwise Comparisons of gating strategies for", significance_tables[[1]]$feature),
+  format = "markdown"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+T2 <- kable(
+  significance_tables[[2]]$table, 
+  caption = paste("Pairwise Comparisons of gating strategies for", significance_tables[[2]]$feature),
+  format = "markdown"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+T3 <- kable(
+  significance_tables[[3]]$table, 
+  caption = paste("Pairwise Comparisons of gating strategies for", significance_tables[[3]]$feature),
+  format = "markdown"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+T4 <- kable(
+  significance_tables[[4]]$table, 
+  caption = paste("Pairwise Comparisons of gating strategies for", significance_tables[[4]]$feature),
+  format = "markdown"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+T5 <- kable(
+  significance_tables[[5]]$table, 
+  caption = paste("Pairwise Comparisons of gating strategies for", significance_tables[[5]]$feature),
+  format = "markdown"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+T6 <- kable(
+  significance_tables[[6]]$table, 
+  caption = paste("Pairwise Comparisons of gating strategies for", significance_tables[[6]]$feature),
+  format = "markdown"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+T7 <- kable(
+  significance_tables[[7]]$table, 
+  caption = paste("Pairwise Comparisons of gating strategies for", significance_tables[[7]]$feature),
+  format = "markdown"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+T8 <- kable(
+  significance_tables[[8]]$table, 
+  caption = paste("Pairwise Comparisons of gating strategies for", significance_tables[[8]]$feature),
+  format = "markdown"
+) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# Print each table individually
+T1
+T2
+T3
+T4
+T5
+T6
+T7
+T8
+
+```
+
+
+### Drug treatments
+
+Drug treatment assays to assess sensitivity of EpiFlow identification in both, spectral and conventional flow cytometry
+
+#### Summary of spectral flow cytometry experiment
+
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Cell line**       | WTC11                                                                                                                                                            |
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Differentiation** | Neuronal progenitor cells (NPC)                                                                                                                                  |
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Treatment 1**     | DMSO control                                                                                                                                                     |
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Treatment 2**     | Trichostatin A (TSA) (0.5, 1 and 10 µM)                                                                                                                          |
+|                     |                                                                                                                                                                  |
+|                     | HDAC inhibitor, showed to increase H3K27ac (PMID: [23093607](https://pubmed.ncbi.nlm.nih.gov/23093607)). Expected outcome: increase in acetylation marks         |
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Treatment 3**     | A-485 (1, 10 and 20 µM)                                                                                                                                          |
+|                     |                                                                                                                                                                  |
+|                     | p300/CBP inhibitor, showed to decrease H3K27ac (PMID: [28953875](https://pubmed.ncbi.nlm.nih.gov/28953875/)**)**. Expected outcome: decreased acetylation marks. |
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Replicates**      | 3 biological replicates per experimental group                                                                                                                   |
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+: Summary of experimental design
+
+
+```{r, echo=FALSE, warning=FALSE}
+#load data
+data <- read_csv("input/dataNPC.csv", col_types = cols(event = col_number()))
+
+head_datav <- head(data)
+kable(head_datav, format = "html", caption = "Head of Data Frame")
+
+#shape data to long format using dplyr
+data_long <- data %>%
+gather(key = "feature", value = "mfi", -gate, -event, -treatment)
+df <- data_long 
+
+head_dfv <- head(df)
+kable(head_dfv, format = "html", caption = "Head of Data Long Format")
+
+summary_dfv <- summary(df) 
+# Display summary in HTML using kable
+kable(summary_dfv, format = "html", caption = "Summary of Data Frame")
+
+#scale and check data after scaling
+df$mfi_z <- scale(df$mfi)
+
+summary_dfv <- summary(df)
+kable(summary_dfv, format = "html", caption = "Summary of Data Frame after scaling")
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# convert to factors
+df$feature <- factor(df$feature) 
+df$gate <- factor(df$gate) 
+df$treatment <- factor(df$treatment, levels = c("DMSO", "A485 1um", "A485 10um", "A485 20um", "TSA 05um", "TSA 1um", "TSA 10um")) #this will force the order of treatment
+
+# Always check your data
+head_dfv <- head(df)
+head_dfv <- head(df)
+kable(head_dfv, format = "html", caption = "Head of dataset")
+
+```
+
+
+#### Assess spectral flow sensitivity on fluorescent intensity values distributions per feature within each cell cycle phase
+
+
+```{r, echo=FALSE, warning=FALSE, fig.align='center', out.width='100%', fig.width=10, fig.height=6}
+# Define the function to generate plots for each mark
+plot_density_ridges <- function(df, feature_name, pal3) {
+  df %>%
+    filter(feature %in% feature_name) %>% 
+    filter(gate %in% c("G0/G1", "G2", "Mitosis")) %>% 
+    ggplot(aes(x = mfi_z, y = treatment, fill = treatment)) +
+      geom_density_ridges(color = "#e9ecef", alpha = 0.6, scale=3) +
+      scale_fill_manual(values = pal5) +
+    facet_wrap(~gate, ncol = 3, scales = "free_y") +
+    theme_ridges() +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(size = 12, hjust = 0),
+      axis.text.y = element_text(size = 8),
+      axis.ticks = element_blank(),
+      axis.text = element_text(size = 8),
+      legend.title = element_text(size = 10),
+      legend.text = element_text(size = 8),
+      legend.key.size = unit(0.5, "lines"),  # Reduce size of boxes in legend
+      panel.spacing = unit(0.05, "lines"),
+      panel.grid = element_blank(),
+      strip.text = element_text(size = 8)
+    ) +
+    labs(
+      fill = "Treatment",
+      title = paste("Density Plots: Assessment of", feature_name, "detection sensitivity via TSA and A-485 treatments"),
+      x = "Fluorescence Intensity", 
+      y = "Treatment"
+    )
+}
+
+# Save each plot
+dr1 <- plot_density_ridges(df, "H3K14ac", pal5)
+dr1
+ggsave("output/PNG/drug_density_plot_k14ac.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/drug_density_plot_k14ac.svg", plot = dr1, width = 7, height = 7)
+
+dr2 <- plot_density_ridges(df, "H3K27ac", pal5)
+dr2
+ggsave("output/PNG/drug_density_plot_k27ac.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/drug_density_plot_k27ac.svg", plot = dr2, width = 7, height = 7)
+
+dr3 <- plot_density_ridges(df, "H3K4me1", pal5)
+dr3
+ggsave("output/PNG/drug_density_plot_k4me1.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/drug_density_plot_k4me1.svg", plot = dr3, width = 7, height = 7)
+
+dr4 <- plot_density_ridges(df, "H3K9ac", pal5)
+dr4
+ggsave("output/PNG/drug_density_plot_k9ac.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/drug_density_plot_k9ac.svg", plot = dr4, width = 7, height = 7)
+
+```
+
+ 
+#### Assess spectral flow sensitivity on fluorescent intensity values distributions of all features within each cell cycle phase
+
+
+```{r, echo=FALSE, warning=FALSE, fig.align='center', out.width='100%', fig.width=10, fig.height=6}
+#function to superimpose all features on same axis
+
+plot_superimposed_density <- function(df, features, pal5) {
+  df %>%
+    filter(feature %in% features) %>% 
+    filter(gate %in% c("G0/G1", "G2", "Mitosis")) %>% 
+    ggplot(aes(x = mfi_z, y = treatment, fill = feature)) +
+      geom_density_ridges(color = "#e9ecef", alpha = 0.5) +
+      scale_fill_manual(values = pal6) +
+      scale_color_manual(values = pal6) +
+    facet_wrap(~gate, ncol = 3, scales = "free_y") +
+    theme_ridges() +
+    theme(legend.position = "bottom",
+          plot.title = element_text(size = 12, hjust = 0),
+          axis.text.y = element_text(size = 8),
+          axis.ticks = element_blank(),
+          axis.text = element_text(size = 8),
+          legend.title = element_text(size = 10),
+          legend.text = element_text(size = 8),
+          legend.key.size = unit(0.5, "lines"),  # Reduce size of boxes in legend
+          panel.spacing = unit(0.1, "lines"),
+          panel.grid = element_blank(),
+          strip.text = element_text(size = 8)) +
+    labs(fill = "Feature",
+         title = "Superimposed Density Plots: Assessment of Multiple Features after TSA and A-485 treatments", x = "Fluorescence Intensity", y = "Treatment",
+         subtitle = "Spectral Flow Cytometry")
+  }
+
+# Example usage for multiple features
+dr5 <- plot_superimposed_density(df, c("H3K9ac", "H3K14ac", "H3K27ac", "H3K4me1"), pal5)
+
+ggsave("output/PNG/density_plot_7.png", width = 30, height = 15, units = "cm", dpi = 600)
+ggsave("output/SVG/density_plot_7.svg", plot = dr5, width = 7, height = 7)
+
+dr5
+
+```
+
+
+#### Statistical analysis to assess the effect of drug treatments in each feature
+
+
+```{r, echo=FALSE, warning=FALSE, fig.align='center', out.width='100%', fig.width=20, fig.height=10}
+
+generate_cluster_drug_plots <- function(df, features, output_dir) {
+  # Ensure the output directory exists
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+  }
+  
+  plot_drug_list <- list() # Initialize an empty list to store plots
+  
+  # Loop over each feature and generate the plot
+  for (feature in features) {
+    plot_drug <- df %>%
+      dplyr::filter(feature == !!feature) %>% 
+      grouped_ggbetweenstats(
+        x = treatment,
+        y = mfi_z,
+        grouping.var = gate,
+        type = "np",  # Non-parametric test
+        xlab = "Treatment",
+        ylab = "Scaled Fluorescence Intensity",
+        pairwise.display = "none", # add "significant" to display only significant pairwise comparisons
+        p.adjust.method = "fdr", # Adjust p-values for multiple tests using this method
+        plotgrid.args = list(nrow = 2),
+        annotation.args = list(title = paste("Effect of drug treatments in:", feature)), # Correct concatenation
+        ggplot.component = list(
+          scale_color_manual(values = c("#081d58", "#41b6c4", "#1d91c0", "#225ea8", "#ffffd9", "#edf8b1", "#c7e9b4")),
+          theme( # Customizations
+            text = element_text(family = "Times New Roman", size = 8, color = "black"),
+            plot.title = element_text(
+              family = "Times New Roman", 
+              size = 12,
+              face = "bold",
+              color = "#2a475e"
+            ),
+            plot.subtitle = element_text(
+              family = "Times New Roman", 
+              size = 8, 
+              face = "bold",
+              color = "#1b2838"
+            ),
+            plot.title.position = "plot",
+            axis.text = element_text(size = 8, color = "black"),
+            axis.title = element_text(size = 8),
+            axis.ticks = element_blank(),
+            axis.line = element_line(colour = "grey50"),
+            panel.grid = element_line(color = "#b4aea9"),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.grid.major.y = element_line(linetype = "dashed"),
+            panel.background = element_rect(fill = "white", color = "white"),
+            plot.background = element_rect(fill = "white", color = "white")
+          )
+        )
+      )
+    
+    # Add the plot to the list
+    plot_drug_list[[feature]] <- plot_drug
+    
+    # Save the individual plot as PNG
+    ggsave(
+      filename = file.path(output_dir, paste0("violin_spec_plot_drug_", feature, ".png")),
+      plot = plot_drug,
+      width = 45, height = 20, units = "cm", dpi = 300
+    )
+    
+    # Save the individual plot as SVG
+    ggsave(
+      filename = file.path(output_dir, paste0("violin_spec_plot_drug_", feature, ".svg")),
+      plot = plot_drug,
+      width = 45, height = 20, units = "cm"
+    )
+    
+    # Print the plot to ensure it appears in the HTML report
+    print(plot_drug)
+  }
+}
+
+# Example usage:
+output_directory_drug <- "output/feature_violin_plots/Validation"
+features_to_plot <- c("H3K9ac", "H3K27ac", "H3K14ac", "H3K4me1") 
+generate_cluster_drug_plots(df, features_to_plot, output_directory_drug)
+
+```
+
+
+##### Pairwise comparisons
+
+Extracting pairwise comparisons 
+
+
+```{r, echo=FALSE, results='asis'}
+
+# Function to perform pairwise comparisons for a specific feature within a specific gate
+drug_pairwise_comparisons <- function(df, gate_name, feature_name) {
+  # Filter data for the current gate and feature
+  df_filtered_drug <- df %>%
+    filter(gate == !!gate_name) %>%
+    filter(feature == !!feature_name)
+  
+  # Check if there are at least two groups with observations
+  if (length(unique(df_filtered_drug$treatment)) > 1) {
+    # Perform pairwise comparisons
+    drug_pairwise_results <- ggstatsplot::pairwise_comparisons(
+      data = df_filtered_drug,
+      x = treatment, 
+      y = mfi,
+      type = "np",  # Non-parametric test
+      p.adjust.method = "fdr"
+    )
+    
+    # Add a column for significance compared to the threshold of 0.05
+    drug_pairwise_results <- drug_pairwise_results %>%
+      mutate(
+        Gate = gate_name,
+        Feature = feature_name,
+        Significance = case_when(
+          p.value == 0.05 ~ "Equal to 0.05",
+          p.value < 0.05 ~ "Less than 0.05",
+          p.value > 0.05 ~ "More than 0.05"
+        )
+      )
+    
+    return(drug_pairwise_results)
+  } else {
+    # Log a message or handle cases where there is only one group
+    message(paste("Skipping gate:", gate_name, "and feature:", feature_name, 
+                  "- only one group present after filtering."))
+    return(NULL)
+  }
+}
+
+# List of gates and features to analyze
+gates_to_analyze <- c("G0/G1", "G2", "Mitosis", "NPC|PAX6+", "Other")
+features_to_analyze <- c("H3K9ac", "H3K27ac", "H3K14ac", "H3K4me1")
+
+# Run pairwise comparisons for each combination of gate and feature
+drug_results_list <- lapply(gates_to_analyze, function(gate) {
+  lapply(features_to_analyze, function(feature) {
+    drug_pairwise_comparisons(df, gate, feature)
+  })
+})
+
+# Combine all non-null results into a single data frame
+drug_results_combined <- do.call(rbind, do.call(c, drug_results_list))
+
+
+
+# Display results
+kable(drug_results_combined, format = "html", caption = "Pairwise Comparisons") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#6e6ec7")
+
+
+```
+
+
+
+
+
+:::
+
+<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+
+Session Information
+
+</button>
+
+::: {#collapseOne .accordion-collapse .collapse}
+<div>
+
+
+```{r}
+sessionInfo()
+```
+
+
+</div>
+:::
+

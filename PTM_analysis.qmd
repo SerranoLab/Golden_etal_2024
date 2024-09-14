@@ -399,8 +399,8 @@ generate_cluster_calculations <- function(cbp) {
   calculations_list <- list()  # Initialize an empty list to store results
 
   # Loop over each cluster
-  for (i in 1:14) {
-    cluster_name <- paste0("fsom", sprintf("%02d", i))
+  for (i in 1:10) {
+    cluster_name <- paste0("fsom_", sprintf("%02d", i))
     
     # Filter data for the current cluster
     cluster_data <- cbp %>% filter(clusterid == cluster_name)
@@ -431,20 +431,20 @@ generate_cluster_calculations <- function(cbp) {
 # Assuming `cbp` is your dataframe:
 calculations_list <- generate_cluster_calculations(cbp)
 
-# This will create variables cbp_calculations_fsom01 to cbp_calculations_fsom14
+# This will create variables cbp_calculations_fsom01 to cbp_calculations_fsom10
 
 ```
 
 ```{r echo=FALSE, warning=FALSE}
 # For the next 3 chunks of code, you'll have to change the input file based on cluster and adjust parameters based on max_mfi of each cluster...annoying. If you know how to make a function that will adjust these things automatically, please feel free to let me know and modify this code.
 # Get the range of sum_mfi to determine appropriate y-intercepts per cluster
-y_max <- max(cbp_calculations_fsom14$max_mfi)
+y_max <- max(cbp_calculations_fsom_02$max_mfi) #Change this for fsom_n
 
 # Plot
-cbp <- ggplot(cbp_calculations_fsom14) +
+cbp <- ggplot(cbp_calculations_fsom_02) + #change this for fsom_n
   geom_hline(
     aes(yintercept = y), 
-    data.frame(y = seq(0, y_max, by = y_max / 9.68)),  #change this last number to the highest max_mfi value of the data
+    data.frame(y = seq(0, y_max, by = y_max / 8.39)),  #change this last number to the highest max_mfi value or round up value of the data
     color = "lightgrey"
   ) +
   geom_col(
@@ -473,7 +473,7 @@ cbp <- ggplot(cbp_calculations_fsom14) +
     color = "gray12"
   ) +
   coord_polar() +
-  labs(title = "Contribution of each feature in cluster fsom 14",
+  labs(title = "Contribution of each feature in cluster fsom 10", #change the title for correct cluster id
        x = "Feature",
        y = "MFI (Median Fluorescence Intensity)") 
 
@@ -493,7 +493,7 @@ cbp1 <- cbp +
   ) +
   annotate(
     x = 9, 
-    y = 9.8,
+    y = 8.8, #change this to a number between 9.2 and the max_mfi of the cluster 
     label = "Max MFI",
     geom = "text",
     angle = 19,
@@ -538,7 +538,7 @@ cbp1 <- cbp +
   # ) +
   # Scale y axis so bars don't start in the center
   scale_y_continuous(
-    limits = c(-2, 9.8), # Max max_mfi value here
+    limits = c(-2, 9), # Max max_mfi value here
     expand = c(0, 0),
     breaks = c(0, 2, 4, 6, 8)
   ) + 
@@ -546,16 +546,16 @@ cbp1 <- cbp +
   scale_fill_manual(
     "MFI",
     values = c(
-      "#9cc17b",
-      "#9bb0f9",
-      "#cbb66d",
-      "#01bdd9",
-      "#f69593",
-      "#72c18e",
-      "#fea9da",
-      "#baffe0",
-      "#a4f6ff"
-    )
+  "#4E79A7",  # Blue
+  "#F28E2B",  # Orange
+  "#E15759",  # Red
+  "#76B7B2",  # Cyan
+  "#59A14F",  # Green
+  "#EDC949",  # Yellow
+  "#B07AA1",  # Purple
+  "#FF9DA7",  # Pink
+  "#9C755F"   # Brown
+    ) # Tried to make this palette as accessible as possible but it is not perfect. Please leave the labels of each bar to increase accessibility.
   ) +
   # Make the guide for the fill discrete
   guides(
@@ -577,11 +577,12 @@ cbp1 <- cbp +
 
 ```
 
-```{r fig.align="center", fig.width=9, fig.height=12, fig.cap="Figure 5: Features' contribution to fsom clusters"}
+
+```{r echo=FALSE, warning=FALSE}
 cbp2 <- cbp1 + 
   # Add labels
   labs(
-    title = "\nContribution of individual features to cluster fsom 14",
+    title = "\nContribution of individual features to cluster fsom 02",
     subtitle = paste(
       "\nMFI values were shifted to ensure positivity, then summarized",
       "by feature within each cluster, displaying maximum, minimum, and median MFI values.\n",
@@ -603,10 +604,31 @@ cbp2 <- cbp1 +
     panel.grid.major.x = element_blank()
   )
 # Use `ggsave("plot.png", plt, width=9, height=12.6)` to save it as in the output
-cbp2
-ggsave("output/PNG/bar_plot_fsom14.png", cbp2,width=9, height=12.6)
-ggsave(filename = "output/SVG/bar_plot_fsom14.svg", plot = cbp2, width = 9, height = 12.6)
+
+ggsave("output/PNG/Circular bar plots/bar_plot_fsom02.png", cbp2,width=9, height=12.6)
+ggsave(filename = "output/SVG/Circular bar plots/bar_plot_fsom02.svg", plot = cbp2, width = 9, height = 12.6)
 ```
+
+
+```{r echo=FALSE, out.width='100%', fig.align='center', fig.cap="Figure 5: Features' contribution to fsom clusters"}
+# List of image paths
+image_paths <- c(
+  "output/PNG/Circular bar plots/bar_plot_fsom01.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom02.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom03.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom04.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom05.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom06.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom07.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom08.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom09.png",
+  "output/PNG/Circular bar plots/bar_plot_fsom10.png"
+)
+
+# Render images
+knitr::include_graphics(image_paths)
+
+``` 
 
 ## Correlation plots
 
@@ -789,7 +811,7 @@ d1b
 
 ```{r, echo=FALSE, warning=FALSE}
 #load data for manual gates
-datag <- read_csv("input/data_gate.csv", col_types = cols(event = col_number()))
+datag <- read_csv("input/data_fsom_manual.csv", col_types = cols(event = col_number()))
 
 #shape data to long format using dplyr
 datag_long <- datag %>%
@@ -938,7 +960,7 @@ generate_cluster_plots <- function(df, output_dir) {
   }
   
   # Define all cluster IDs
-  cluster_ids <- paste0("fsom", sprintf("%02d", 1:14))
+  cluster_ids <- paste0("fsom_", sprintf("%02d", 1:10))
   
   # Create a list to hold the plots
   plot_list <- list()
@@ -1071,7 +1093,7 @@ run_pairwise_comparisons <- function(df, cluster_name) {
 }
 
 # List of clusters
-clusters_to_analyze <- paste0("fsom", sprintf("%02d", 1:14))
+clusters_to_analyze <- paste0("fsom_", sprintf("%02d", 1:10))
 
 # Run pairwise comparisons
 results_list <- lapply(clusters_to_analyze, function(clusterid) run_pairwise_comparisons(df, clusterid))
