@@ -157,7 +157,7 @@ This plot allows visualization of single events in each cluster. Not included in
 # If you want to mix and match or add more options, you can check the accessibility of your color palette with https://colororacle.org/
 
 pal1 <- c("#fc74da","#00c978","#6e2698","#c9d748","#0175e7","#007402","#db433d","#b27400") 
-pal2 <- c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d") 
+pal2 <- c("#EDC949", "#B07AA1", "#76B7B2", "#59A14F") 
 pal3 <- c("#56ae6c", "#8960b3", "#b0923b", "#ba495b") 
 pal4 <- c("#bc4862","#46c19a","#a34e97","#9fac3a","#6e6ec7","#69a150","#b55235","#c48c3e") 
 pal5 <- c("#081d58", "#41b6c4", "#1d91c0", "#225ea8", "#ffffd9", "#edf8b1", "#c7e9b4")
@@ -546,15 +546,15 @@ cbp1 <- cbp +
   scale_fill_manual(
     "MFI",
     values = c(
-  "#4E79A7",  # Blue
-  "#F28E2B",  # Orange
-  "#E15759",  # Red
-  "#76B7B2",  # Cyan
-  "#59A14F",  # Green
-  "#EDC949",  # Yellow
-  "#B07AA1",  # Purple
-  "#FF9DA7",  # Pink
-  "#9C755F"   # Brown
+  "#4E79A7",  # Blue Caspase3
+  "#F28E2B",  # Orange FxCycle
+  "#B07AA1",  # Purple H3K14ac
+  "#76B7B2",  # Cyan H3K27ac
+  "#59A14F",  # Green H3K4me3
+  "#EDC949",  # Yellow H3K9ac
+  "#E15759",  # Red PAX6
+  "#FF9DA7",  # Pink phH3_S10
+  "#9C755F"   # Brown Total H3
     ) # Tried to make this palette as accessible as possible but it is not perfect. Please leave the labels of each bar to increase accessibility.
   ) +
   # Make the guide for the fill discrete
@@ -880,7 +880,7 @@ histogram1 <- df %>%
   filter(feature %in% c("H3K9ac", "H3K14ac", "H3K27ac", "H3K4me3")) %>%
   ggplot(aes(x = mfi, fill = feature)) +
   geom_histogram(binwidth = 0.2, color = "#e9ecef", alpha = 0.6, position = 'identity') +
-  scale_fill_manual(values = c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d")) +
+  scale_fill_manual(values = c("#EDC949", "#B07AA1", "#76B7B2", "#59A14F")) + 
   facet_wrap(~clusterid, ncol = 3, scales = "free_y") +
   labs(title = "Histograms: Feature distribution per cluster", x = "Fluorescence", y = "Cell count") +
   theme_minimal() +
@@ -915,7 +915,7 @@ histogram_gates <- dfg %>%
   filter(feature %in% c("H3K9ac", "H3K14ac", "H3K27ac", "H3K4me3")) %>%
   ggplot(aes(x = mfi, fill = feature)) +
   geom_histogram(binwidth = 0.2, color = "#e9ecef", alpha = 0.6, position = 'identity') +
-  scale_fill_manual(values = c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d")) +
+  scale_fill_manual(values = c("#EDC949", "#B07AA1", "#76B7B2", "#59A14F")) +
   facet_wrap(~clusterid, ncol = 3, scales = "free_y") +
   labs(title = "Histograms: Feature distribution per manual cluster", x = "Fluorescence", y = "Cell count") +
   theme_minimal() +
@@ -979,7 +979,7 @@ generate_cluster_plots <- function(df, output_dir) {
         p.value.args = list(digits = 4), # Adjust p-values for multiple tests using this method
         results.subtitle = TRUE,
         ggplot.component = list(
-      scale_color_manual(values = c("#bc4862", "#8650a6",  "#ac9c3d", "#6881d8",  "#ba543d", "#46c19a")))
+      scale_color_manual(values = c( "#F28E2B",  "#FF9DA7", "#EDC949",  "#B07AA1",  "#76B7B2",  "#59A14F")))
       ) +
       # Add labels and title
       labs(
@@ -1192,7 +1192,7 @@ generate_cluster_plots <- function(H3, output_dir) {
         p.value.args = list(digits = 4), # Adjust p-values for multiple tests using this method
         results.subtitle = TRUE,
         ggplot.component = list(
-      scale_color_manual(values = c("#b8553c","#46c19a","#b84c7d","#6da24d","#7f62b8","#bd9d3c")))
+      scale_color_manual(values = c("#F28E2B", "#FF9DA7","#EDC949", "#B07AA1","#76B7B2","#59A14F")))
       ) +
       # Add labels and title
       labs(
