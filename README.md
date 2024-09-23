@@ -19,7 +19,7 @@
 
 The goal of this project is to simultaneously assess Histone 3 post-translational modifications (H3-PTMs) and markers of interest (e.g., cell lineage markers, cytoplasmic proteins, plasma membrane receptors) while also resolving cell cycle phases within the same cell. To achieve this, we optimized an H3-PTM spectral flow cytometry panel and developed a high-throughput immunofluorescence protocol conducted directly in whole cells that enables the detection of H3-PTM signatures and their assessment in relationship to the status of a given cell.
 
-The experimental approach of this project can be found in [bioRxiv](https://www.biorxiv.org/).
+The experimental approach of this project can be found in [bioRxiv](https://www.biorxiv.org/). (Note: link to be updated once live)
 
 ## Getting Started
 
@@ -86,7 +86,7 @@ This will help you reproduce the R environment we used in this project.
 
 ## Running the Analysis 
 
-You should be able to run all the code and reproduce the data analysis as reported in our paper. Note that the input folder contains data as `.csv` files with biological replicates concatenated. They do not contain data for blanks and single-color controls. All data processing steps are outlined in the parent [BioProtocol](https://bio-protocol.org/en) paper. Additional data processing for the analysis is commented in the `.qmd` file. Raw `.fcs` files are available on [FlowRepository](http://flowrepository.org/).
+You should be able to run all the code and reproduce the data analysis as reported in our paper. Note that the input folder contains data as `.csv` files with biological replicates concatenated. They do not contain data for blanks and single-color controls. All data processing steps are outlined in the parent preprint [Golden, et al., 2024](https://www.biorxiv.org/) (Note: link to be updated once live). Additional data processing for the analysis is commented in the `.qmd` file. Raw `.fcs` files are available on [FlowRepository](http://flowrepository.org/) (Note: link to be updated once live).
 
 ## Data visualization
 
