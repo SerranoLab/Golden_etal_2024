@@ -20,6 +20,7 @@
 The goal of this project is to simultaneously assess Histone 3 post-translational modifications (H3-PTMs) and markers of interest (e.g., cell lineage markers, cytoplasmic proteins, plasma membrane receptors) while also resolving cell cycle phases within the same cell. To achieve this, we optimized an H3-PTM spectral flow cytometry panel and developed a high-throughput immunofluorescence protocol conducted directly in whole cells that enables the detection of H3-PTM signatures and their assessment in relationship to the status of a given cell.
 
 The experimental approach of this project can be found in [bioRxiv](https://www.biorxiv.org/). (Note: link to be updated once live)
+The supplementary data analysis for EpiFlow from Golden el al., 2024 (Quarto Report) can be found [here](https://serranolab.github.io/Golden_etal_2024/)
 
 ## Getting Started
 
