@@ -1,0 +1,26 @@
+cff-version: preprint.v1.0.1
+message: "If you use this analysis workflow, please cite it as below."
+authors:
+- family-names: "Golden"
+  given-names: "CS"
+orcid: "https://orcid.org/0000-0003-2855-8500"
+- family-names: "Williams"
+  given-names: "S"
+  orcid: "https://orcid.org/0000-0002-2727-6459"
+- family-names: "Blankevoort"
+  given-names: "S"
+  orcid: "https://orcid.org/0009-0007-1239-5280"
+- family-names: "Belkina"
+  given-names: "AC"
+  orcid: "https://orcid.org/0000-0001-7967-6254"
+- family-names: "Yost"
+  given-names: "HJ"
+  orcid: "https://orcid.org/0000-0003-2961-5669"
+- family-names: "Serrano"
+  given-names: "MA"
+  orcid: "https://orcid.org/0000-0002-4318-3746"
+title: "Nuclear Histone 3 Post-translational Modification Profiling in Whole Cells using Spectral Flow Cytometry. Analysis Workflow."
+version: preprint.v1.0.1
+doi: 10.5281/zenodo.13863623
+date-released: 2024-09-30
+url: "https://serranolab.github.io/Golden_etal_2024/"
