@@ -3,13 +3,6 @@ title: "Nuclear Histone 3 Post translational Modification Profiling in Whole Cel
 subtitle: "Data Analysis"
 author: "Golden et al., 2024"
 affiliation: "Center for Regenerative Medicine (CReM), Department of Medicine, Boston University Chobanian & Avedisian School of Medicine"
-website:
-  navbar:
-    tools:
-      - icon: github
-        menu:
-          - text: Source Code
-            href: https://github.com/SerranoLab/Golden_etal_2024
 format: 
   html:
     code-link: true
@@ -69,11 +62,13 @@ library(colorRamp2)
 
 # Background
 
-In this analysis workflow we use spectral flow cytometry to simultaneously assess histone H3 post-translational modifications (H3-PTMs) at the single-cell level, in the context of cell cycle status and cell-type-specific markers. This workflow was implemented in [Golden et al., 2024](https://biorxiv.com) and contains supplementary figures and data analysis associated with the pre-print. Note: Link to preprint will be updated once live.
+In this analysis workflow we use spectral flow cytometry to simultaneously assess histone H3 post-translational modifications (H3-PTMs) at the single-cell level, in the context of cell cycle status and cell-type-specific markers. This workflow was implemented in [Golden et al., 2024](https://www.biorxiv.org/content/10.1101/2024.10.03.616268v1) and contains supplementary figures and data analysis associated with the pre-print.
 
 ## Information about biological material
 
-iPSC-derived Neuronal Progenitor Cells (NPCs) were generated using the female control line SCTi003-A (Stem Cell Technologies). NPC induction was performed with the STEMdiff SMADi Neural Induction Kit, following the manufacturer's instructions. All experiments were conducted with three biological replicates, defined in this context as NPCs induced in three independent wells. For further details on experimental design and data acquisition, please refer to [Golden et al., 2024](https://biorxiv.com).
+iPSC-derived Neuronal Progenitor Cells (NPCs) were generated using the female control line SCTi003-A (Stem Cell Technologies). NPC induction was performed with the STEMdiff SMADi Neural Induction Kit, following the manufacturer's instructions. All experiments were conducted with three biological replicates, defined in this context as NPCs induced in three independent wells.
+
+For further details on experimental design and data acquisition, please refer to [Golden et al., 2024](https://www.biorxiv.org/content/10.1101/2024.10.03.616268v1). For access to the GitHub Repository, click this link [Golden et al., GitHub Repository](https://github.com/SerranoLab/Golden_etal_2024)
 
 ## Information about initial data processing performed in OMIQ
 
