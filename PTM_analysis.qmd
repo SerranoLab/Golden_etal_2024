@@ -5,6 +5,9 @@ author: "Golden et al., 2024"
 affiliation: "Center for Regenerative Medicine (CReM), Department of Medicine, Boston University Chobanian & Avedisian School of Medicine"
 format: 
   html:
+    html:
+    include-in-header:
+      - file: github-corner.html
     code-link: true
     code-fold: true
     code-summary: "Show code"
@@ -58,6 +61,7 @@ library(patchwork)
 library(kableExtra)
 library(statsExpressions)
 library(colorRamp2)
+library(cowplot)
 ```
 
 # Background
@@ -158,7 +162,7 @@ In the context of this project (and most spectral data) the targets of the antib
 
 ### Initial visualization of all events within each cluster
 
-This plot allows visualization of single events in each cluster. Not included in Methods paper
+This plot allows visualization of single events in each cluster. Not included in the paper.
 
 ```{r echo=FALSE, warning=FALSE}
 # Data accessibility! Set color palettes that are colorblind friendly, no excuses!
@@ -696,7 +700,9 @@ bub1 <- filtered_data %>%
     panel.border = element_rect(fill = NA, color = "darkgray"),
     plot.background = element_rect(fill = "white", color = "white"),
     panel.grid = element_blank(),
-    panel.grid.major = element_blank()
+    panel.grid.major = element_blank(),
+    axis.title.x = element_text(size = 12), # Increase x-axis label size
+    axis.title.y = element_text(size = 12)  # Increase y-axis label size
   ) +
   ylab("Phospho H3 S10 Fluorescence") +
   xlab("FxCycle (DNA Content)") +
@@ -757,7 +763,9 @@ bub2 <- filtered_data2 %>%
     panel.border = element_rect(fill = NA, color = "darkgray"),
     plot.background = element_rect(fill = "white", color = "white"),
     panel.grid = element_blank(),
-    panel.grid.major = element_blank()
+    panel.grid.major = element_blank(),
+    axis.title.x = element_text(size = 12), # Increase x-axis label size
+    axis.title.y = element_text(size = 12)  # Increase y-axis label size
   ) +
   ylab("Cleaved-Caspase3 Fluorescence") +
   xlab("PAX6 Fluorescense") +
@@ -816,13 +824,15 @@ create_plot <- function(data, histone, correlation_column, y_label, title) {
       subtitle = "Clusters ordered by FxCycle intensity and Pearson correlation values",
     ) +
     theme(
-      legend.position = "bottom",
-      panel.background = element_rect(fill = "white", color = "white"),
-      panel.border = element_rect(fill = NA, color = "darkgray"),
-      plot.background = element_rect(fill = "white", color = "white"),
-      panel.grid = element_blank(),
-      panel.grid.major = element_blank()
-    ) +
+    legend.position = "bottom",
+    panel.background = element_rect(fill = "white", color = "white"),
+    panel.border = element_rect(fill = NA, color = "darkgray"),
+    plot.background = element_rect(fill = "white", color = "white"),
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    axis.title.x = element_text(size = 12), # Increase x-axis label size
+    axis.title.y = element_text(size = 12)  # Increase y-axis label size
+  ) +
     ylab(y_label) +
     xlab("PAX6 Fluorescence") +
     facet_wrap(~clusterid) +
@@ -885,13 +895,15 @@ create_overall_plot <- function(data, histone, correlation_value, y_label, title
       subtitle = sprintf("Pearson correlation = %.2f", correlation_value),
     ) +
     theme(
-      legend.position = "bottom",
-      panel.background = element_rect(fill = "white", color = "white"),
-      panel.border = element_rect(fill = NA, color = "darkgray"),
-      plot.background = element_rect(fill = "white", color = "white"),
-      panel.grid = element_blank(),
-      panel.grid.major = element_blank()
-    ) +
+    legend.position = "bottom",
+    panel.background = element_rect(fill = "white", color = "white"),
+    panel.border = element_rect(fill = NA, color = "darkgray"),
+    plot.background = element_rect(fill = "white", color = "white"),
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    axis.title.x = element_text(size = 12), # Increase x-axis label size
+    axis.title.y = element_text(size = 12)  # Increase y-axis label size
+  ) +
     ylab(y_label) +
     xlab("PAX6 Fluorescence")
 }
@@ -2089,7 +2101,7 @@ plot_superimposed_density <- function(df, features, pal5) {
 dr5 <- plot_superimposed_density(df, c("H3K9ac", "H3K14ac", "H3K27ac", "H3K4me1"), pal5)
 
 ggsave("output/PNG/density_plot_7.png", width = 30, height = 15, units = "cm", dpi = 600)
-ggsave("output/SVG/density_plot_7.svg", plot = dr5, width = 7, height = 7)
+ggsave("output/SVG/density_plot_7.svg", plot = dr5, width = 30, height = 15, units = "cm")
 
 dr5
 ```
@@ -2250,6 +2262,379 @@ kable(drug_results_combined, format = "html", caption = "Pairwise Comparisons") 
   ) %>%
   row_spec(0, bold = TRUE, color = "white", background = "#6e6ec7")
 ```
+
+#### Summary of conventional flow cytometry project 
+
+
++---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Cell line**       | Scti-003A                                                                                                                                                |
++---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Differentiation** | induced Plutipotent Stem Cell (iPSC)                                                                                                                     |
++---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Treatment 1**     | DMSO control (4.x files)                                                                                                                                           |
++---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Treatment 2**     | Trichostatin A (TSA)                                                                                                                    |
+|                     |                                                                                                                                                          |
+|                     | HDAC inhibitor, showed to increase H3K27ac (PMID: [23093607](https://pubmed.ncbi.nlm.nih.gov/23093607)). Expected outcome: increase in acetylation marks |
++---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Treatment 3**     | Vorinostat (SAHA) (0.5, 0.75 and 1 µM)                                                                                                                      |
+|                     |                                                                                                                                                          |
+|                     | HDAC inhibitor, showed to increase H3K9ac (PMID: [28978082](https://pubmed.ncbi.nlm.nih.gov/28978082)). Expected outcome: increased acetylation marks.   |
++---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **Replicates**      | 3 biological replicates per experimental group                                                                                                           |
++---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+::: callout-gradient
+::: callout-note
+Features name were not modified on OMIQ. Features are as follow: H3K9ac and H3K27ac: PE; Total H3: APC
+:::
+:::
+
+::: callout-warning
+OMIQ workflow: Blank cpontrols were acquired for gating but are not included in this downstream analysis. Sampling was performed as max equal because TSA treatment substantially reduced the number of cells.
+:::
+
+**Data pre-processing**
+* Files were concatenated by treatment when downloaded
+* files are coded so that 1.1, 1.2 and 1.3 (2.x, 3.x, 4.x) are biological replicates of each treatment. To prevent confusion, I added *treatment* column with this information.
+* Kept original OMIQ files un-altered but generated a concatenated file per feature located in the input folder that contains all the necessary information for proper analysis. 
+* Files will be transform to long format individually and then merged
+
+
+Once we have both cvs with the right annotations and columns, each file is loaded, shaped to long format and then merged
+
+```{r, echo=FALSE, warning=FALSE}
+# Data formating
+# load K9ac data
+data_K9 <- read_csv("input/data_stdg_K9ac.csv", col_types = cols(event = col_number())) #load data per feature
+head(data_K9)
+# shape data to long format using dplyr
+data_K9_long <- data_K9 %>%
+gather(key = "feature", value = "mfi", -gate, -event, -treatment)
+#head(data_K9_long)
+dfk9 <- data_K9_long 
+#str(dfk9)
+summary_dfk9 <- summary(dfk9)
+kable(summary_dfk9, format = "html", caption = "Summary of Data Frame")
+  
+# load and shape K27ac data
+data_K27 <- read_csv("input/data_stdg_K27ac.csv", col_types = cols(event = col_number())) #load data per feature. 
+head(data_K27)
+
+data_K27_long <- data_K27 %>%
+gather(key = "feature", value = "mfi", -gate, -event, -treatment)
+#head(data_K27_long)
+dfk27 <- data_K27_long 
+#str(dfk27)
+
+summary_dfk27 <- summary(dfk27)
+kable(summary_dfk27, format = "html", caption = "Summary of Data Frame")
+```
+
+```{r}
+# Combine dfk9 and dfk27 by stacking them vertically
+combined_df <- bind_rows(dfk9, dfk27)
+
+# Display the structure of the combined dataframe
+#str(combined_df)
+
+# View the first few rows of the combined dataframe
+#head(combined_df)
+summary_combined_df <- summary(combined_df)
+kable(summary_combined_df, format = "html", caption = "Summary of Combined Data Frame")
+
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Scale data
+dfc <- combined_df #just making it shorter to type in
+dfc$mfi_z <- scale(dfc$mfi) #scale
+
+summary_dfc <- summary(dfc)
+kable(summary_dfc, format = "html", caption = "Summary of Combined and Scaled Data Frame")
+
+```
+
+```{r, warning=FALSE}
+#| echo: false
+# convert to factors
+dfc$feature <- factor(dfc$feature) 
+dfc$gate <- factor(dfc$gate) 
+dfc$treatment <- factor(dfc$treatment, levels = c("DMSO", "SAHA 05 um", "SAHA 075 um", "SAHA 1 um", "TSA 05 um", "TSA 1 um", "TSA 2 um")) #this will force the order of treatment
+# str(dfc)
+```
+
+
+#### Density plots for manual gates
+
+Density plots depicting all features per cluster will offer resolution on the distribution of each H3-PTM within the clusters.
+
+From [R Gallery](https://r-graph-gallery.com/135-stacked-density-graph.html)
+
+*Supplementary figure S3:* Conventional flow cytometry
+
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| echo: false
+
+#function to superimpose all features on same axis
+
+plot_superimposed_strdg_density <- function(dfc, features, pal3) {
+  dfc %>%
+    filter(feature %in% features) %>% 
+    filter(gate %in% c("H3K27ac", "H3K9ac", "Total H3")) %>% 
+    ggplot(aes(x = mfi_z, y = treatment, fill = feature)) +
+      geom_density_ridges(color = "#e9ecef", alpha = 0.5) +
+      scale_fill_manual(values = c("H3K9ac" = "#ba543d", "H3K27ac" = "#ac9c3d")) +
+    theme_ridges() +
+    theme(legend.position = "bottom",
+          plot.title = element_text(size = 12, hjust = 0),
+          axis.text.y = element_text(size = 8),
+          axis.ticks = element_blank(),
+          axis.text = element_text(size = 8),
+          legend.title = element_text(size = 10),
+          legend.text = element_text(size = 8),
+          legend.key.size = unit(0.5, "lines"),  # Reduce size of boxes in legend
+          panel.spacing = unit(0.1, "lines"),
+          panel.grid = element_blank(),
+          strip.text = element_text(size = 8)) +
+    labs(fill = "Feature",
+         title = "Superimposed Density Plots: Assessment of Multiple Features via TSA and SAHA treatments", 
+         x = "Fluorescence Intensity", 
+         y = "Treatment",
+         subtitle = "Conventional Flow Cytometry")
+}
+
+# Example usage for multiple features
+dr6 <- plot_superimposed_strdg_density(dfc, c("H3K9ac", "H3K27ac"), pal3)
+dr6
+
+ggsave("output/PNG/density_plot_8.png", width = 10, height = 15, units = "cm", dpi = 300)
+ggsave("output/SVG/density_plot_8.svg", plot = dr6, width = 10, height = 15, units = "cm")
+
+dr6
+```
+
+
+#### Statistical analysis to assess the effect of drug treatments in each feature by conventional flow cytometry
+
+```{r, fig.width=20, fig.height=30, echo=FALSE}
+#grouped analysis
+
+vpl3 <- dfc %>%
+  dplyr::filter(feature %in% c("H3K27ac", "H3K9ac")) %>% 
+  grouped_ggbetweenstats(
+    ## arguments relevant for ggbetweenstats
+    x = treatment,
+    y = mfi_z,
+    grouping.var = feature,
+    type = "np",  # Non-parametric test
+    xlab = "Treatment",
+    ylab = "Fluorescence Intensity",
+    pairwise.display = "none", ## display only significant pairwise comparisons
+    p.adjust.method = "fdr", ## adjust p-values for multiple tests using this method
+    results.subtitle = TRUE,
+    package = "khroma",
+    palette = "okabeito",
+    ## arguments relevant for combine_plots
+    annotation.args = list(title = "Changes in H3K27ac and H3K9ac can be detected by epiflow"),
+    plotgrid.args = list(nrow = 2),
+     ggplot.component = list(
+          scale_color_manual(values = c("#081d58", "#41b6c4", "#1d91c0", "#225ea8", "#ffffd9", "#edf8b1", "#c7e9b4")),
+          theme( # Customizations
+            text = element_text(family = "Arial", size = 8, color = "black"),
+            plot.title = element_text(
+              family = "Arial",
+              size = 12,
+              face = "bold",
+              color = "#2a475e"
+            ),
+            plot.subtitle = element_text(
+              family = "Arial",
+              size = 8,
+              face = "bold",
+              color = "#1b2838"
+            ),
+            plot.title.position = "plot",
+            axis.text = element_text(size = 8, color = "black"),
+            axis.title = element_text(size = 8),
+            axis.ticks = element_blank(),
+            axis.line = element_line(colour = "grey50"),
+            panel.grid = element_line(color = "#b4aea9"),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.grid.major.y = element_line(linetype = "dashed"),
+            panel.background = element_rect(fill = "white", color = "white"),
+            plot.background = element_rect(fill = "white", color = "white")
+          )
+        )
+      )
+
+ggsave("output/feature_violin_plots/Validation/violin_strd_plot_10.png", width = 35, height = 17, units = "cm", dpi = 300)
+ggsave("output/feature_violin_plots/Validation/violin_strd_plot_10.svg", plot = vpl3, width = 35, height = 17, units = "cm")
+
+```
+
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| echo: false
+
+# Define the function to generate the plot and extract pairwise comparison stats
+create_custom_plot <- function(feature_name) {
+  # Filter data for the specified feature
+  df_filtered <- dfc %>%
+    filter(feature == feature_name)
+
+  # Create the plot without displaying stats on the plot
+  plot <- ggbetweenstats(
+    data = df_filtered,
+    x = treatment, 
+    y = mfi_z,
+    type = "np",
+    pairwise.display = "none",
+    p.adjust.method = "fdr",  # Adjust p-values for multiple comparisons
+    p.value.args = list(digits = 4),  # Ensure p-values are displayed with 4 decimal places
+    results.subtitle = TRUE  # Remove stats from the plot
+  ) +
+    # Add labels and title
+    labs(
+      x = "Treatment",
+      y = paste(feature_name, "Fluorescence Intensity"),
+      title = paste("Changes in", feature_name, "can be detected by epiflow")
+    ) + 
+    # Customizations
+    scale_color_manual(values = c("#081d58", "#41b6c4", "#1d91c0", "#225ea8", "#ffffd9", "#edf8b1", "#c7e9b4")) +
+    theme( # Customizations
+      text = element_text(family = "Arial", size = 8, color = "black"),
+      plot.title = element_text(
+        family = "Arial",
+        size = 12,
+        face = "bold",
+        color = "#2a475e"
+      ),
+      plot.subtitle = element_text(
+        family = "Arial",
+        size = 8,
+        face = "bold",
+        color = "#1b2838"
+      ),
+      plot.title.position = "plot",
+      axis.text = element_text(size = 8, color = "black"),
+      axis.title = element_text(size = 8),
+      axis.ticks = element_blank(),
+      axis.line = element_line(colour = "grey50"),
+      panel.grid = element_line(color = "#b4aea9"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.grid.major.y = element_line(linetype = "dashed"),
+      panel.background = element_rect(fill = "white", color = "white"),
+      plot.background = element_rect(fill = "white", color = "white")
+    )
+
+  # Extract pairwise comparison results using pairwiseComparisons function
+  pairwise_results <- ggstatsplot::pairwise_comparisons(
+    data = df_filtered,
+    x = treatment, 
+    y = mfi_z,
+    type = "np",  # Non-parametric test
+    p.adjust.method = "fdr"  # Adjust p-values for multiple comparisons
+  )
+  
+  return(list(plot = plot, pairwise_results = pairwise_results))
+}
+
+# Generate the plots and stats for H3K27ac, H3K9ac, and Total H3
+results_H3K27ac <- create_custom_plot("H3K27ac")
+results_H3K9ac <- create_custom_plot("H3K9ac")
+results_Total_H3 <- create_custom_plot("Total H3")
+
+# Display the plots
+plot_H3K27ac <- results_H3K27ac$plot
+plot_H3K9ac <- results_H3K9ac$plot
+plot_Total_H3 <- results_Total_H3$plot
+
+# Save the plots
+ggsave("output/feature_violin_plots/Validation/violin_strd_plot_11.png", plot = plot_H3K27ac, width = 20, height = 8, units = "cm", dpi = 300)
+ggsave("output/feature_violin_plots/Validation/violin_strd_plot_11.svg", plot = plot_H3K27ac, width = 20, height = 10, units = "cm")
+
+ggsave("output/feature_violin_plots/Validation/violin_strd_plot_12.png", plot = plot_H3K9ac, width = 20, height = 7, units = "cm", dpi = 300)
+ggsave("output/feature_violin_plots/Validation/violin_strd_plot_12.svg", plot = plot_H3K9ac, width = 20, height = 10, units = "cm")
+
+ggsave("output/feature_violin_plots/Validation/violin_strd_plot_13.png", plot = plot_Total_H3, width = 20, height = 7, units = "cm", dpi = 300)
+ggsave("output/feature_violin_plots/Validation/violin_strd_plot_13.svg", plot = plot_Total_H3, width = 20, height = 10, units = "cm")
+
+# Print the pairwise comparison results as tables
+pairwise_H3K27ac <- results_H3K27ac$pairwise_results
+pairwise_H3K9ac <- results_H3K9ac$pairwise_results
+pairwise_Total_H3 <- results_Total_H3$pairwise_results
+
+# Display plots
+plot_H3K27ac
+plot_H3K9ac
+plot_Total_H3
+
+```
+
+##### Pairwise comparisons: Conventional Flow Cytometry
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| echo: false
+
+# Define a function to add a column for p-value comparison
+add_p_comparison_column <- function(pairwise_results, threshold = 0.05) {
+  pairwise_results <- pairwise_results %>%
+    mutate(
+      p_comparison = case_when(
+        p.value == threshold ~ paste0("Equal to ", threshold),
+        p.value < threshold  ~ paste0("Less than ", threshold),
+        p.value > threshold  ~ paste0("More than ", threshold)
+      )
+    )
+  return(pairwise_results)
+}
+
+# Apply the function to each pairwise results table
+pairwise_H3K27ac <- add_p_comparison_column(results_H3K27ac$pairwise_results)
+pairwise_H3K9ac <- add_p_comparison_column(results_H3K9ac$pairwise_results)
+pairwise_Total_H3 <- add_p_comparison_column(results_Total_H3$pairwise_results)
+
+# Print the pairwise comparison results as a nice table using kable
+t1 <- kable(pairwise_H3K27ac, caption = "Pairwise Comparisons for H3K27ac") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+
+t2 <- kable(pairwise_H3K9ac, caption = "Pairwise Comparisons for H3K9ac") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+
+t3 <- kable(pairwise_Total_H3, caption = "Pairwise Comparisons for Total H3") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+
+t1
+t2
+t3
+
+```
+
+```{r, fig.width=20, fig.height=30, echo=FALSE}
+#| fig.align: center
+#| out.width: 100%
+#| echo: false
+
+combined_plot <- plot_grid(plot_H3K27ac, plot_H3K9ac, plot_Total_H3, nrow = 3)
+
+#save
+ggsave("output/feature_violin_plots/Validation/density_combined_strd_plot_stdg.png", width = 25, height = 20, units = "cm", dpi = 600)
+ggsave("output/feature_violin_plots/Validation/density_combined_strd_plot_stdg.svg", plot = combined_plot, width = 10, height = 34)
+
+
+```
+
+
 ::::::
 
 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">

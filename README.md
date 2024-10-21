@@ -87,7 +87,7 @@ This will help you reproduce the R environment we used in this project.
 
 ## Running the Analysis 
 
-You should be able to run all the code and reproduce the data analysis as reported in our paper. Note that the input folder contains data as `.csv` files with biological replicates concatenated. They do not contain data for blanks and single-color controls. All data processing steps are outlined in the parent preprint [Golden, et al., 2024](https://www.biorxiv.org/) (Note: link to be updated once live). Additional data processing for the analysis is commented in the `.qmd` file. Raw `.fcs` files are available on [FlowRepository](http://flowrepository.org/) (Note: link to be updated once live).
+You should be able to run all the code and reproduce the data analysis as reported in our paper. Note that the input folder contains data as `.csv` files with biological replicates concatenated. They do not contain data for blanks and single-color controls. All data processing steps are outlined in the parent preprint [bioRxiv: Golden, et al., 2024](https://www.biorxiv.org/content/10.1101/2024.10.03.616268v1). Additional data processing for the analysis is commented in the `.qmd` file. Raw `.fcs` files will be available on [FlowRepository](http://flowrepository.org/) upon peer reviewed publication.
 
 ## Data visualization
 
