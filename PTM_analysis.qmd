@@ -4,32 +4,13 @@ subtitle: "Data Analysis"
 author: "Golden et al., 2024"
 affiliation: "Center for Regenerative Medicine (CReM), Department of Medicine, Boston University Chobanian & Avedisian School of Medicine"
 format: 
-  html:
-    html:
-    include-in-header:
-      - file: github-corner.html
-    code-link: true
-    code-fold: true
-    code-summary: "Show code"
-    code-tools: true
-    message: false
-    warning: false
-    page-layout: full 
-    output-dir: "docs"
-    output-file: "index"
-    toc: true
-    toc-depth: 5
-    toc-location: "left"
-    toc-expand: true
-    embed-resources: true
-
-css: style.css
-editor_options: 
-  chunk_output_type: console
-title-block-banner: "#e0dcc8" 
-title-block-banner-color: "black"
-execute:
-  freeze: auto
+  lumo-html: 
+    github-repo: "https://github.com/SerranoLab/Golden_etal_2024"      # Optional. Adds a github corner at the top right
+    primary-color: "#45c5e2"
+    self-contained: true
+    is-particlejs-enabled: false                          # Optional: display interactive particles in the document header
+    bg-image: ""                                         # Optional: link to an image for the header background
+date: last-modified
 ---
 
 ```{r echo=FALSE, warning=FALSE}
@@ -173,7 +154,7 @@ pal2 <- c("#EDC949", "#B07AA1", "#76B7B2", "#59A14F")
 pal3 <- c("#56ae6c", "#8960b3", "#b0923b", "#ba495b")
 pal4 <- c("#bc4862", "#46c19a", "#a34e97", "#9fac3a", "#6e6ec7", "#69a150", "#b55235", "#c48c3e")
 pal5 <- c("#081d58", "#41b6c4", "#1d91c0", "#225ea8", "#ffffd9", "#edf8b1", "#c7e9b4")
-pal6 <- c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d")
+pal6 <- c("#8650a6", "#ac9c3d", "#6881d8", "#ba543d") 
 ```
 
 Adapted from [Heatmap for time series](https://r-graph-gallery.com/283-the-hourly-heatmap.html)

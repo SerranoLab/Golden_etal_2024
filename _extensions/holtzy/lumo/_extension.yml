@@ -1,0 +1,27 @@
+title: Lumo
+author: Holtz Yan
+version: 1.0.0
+quarto-required: ">=1.4.0"
+contributes:
+  formats:
+    html:
+      toc: true
+      code-fold: true
+      code-summary: " Show Code"
+      toc-location: left
+      toc-depth: 5
+      toc-title: " "
+      output-dir: "docs"
+      smooth-scroll: true
+      code-annotations: hover
+      title-block-banner: true
+      output-file: "index"
+      embed-resources: true
+      message: false
+      warning: false
+      theme: [custom.scss]
+      include-after-body: "footer.html"
+      template-partials:
+        - title-block.html
+      css: style2.css
+    
