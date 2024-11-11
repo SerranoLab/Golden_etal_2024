@@ -2392,8 +2392,8 @@ plot_superimposed_strdg_density <- function(dfc, features, pal3) {
 dr6 <- plot_superimposed_strdg_density(dfc, c("H3K9ac", "H3K27ac"), pal3)
 dr6
 
-ggsave("output/PNG/density_plot_8.png", width = 10, height = 15, units = "cm", dpi = 300)
-ggsave("output/SVG/density_plot_8.svg", plot = dr6, width = 10, height = 15, units = "cm")
+ggsave("output/PNG/density_plot_8.png", width = 22, height = 15, units = "cm", dpi = 300)
+ggsave("output/SVG/density_plot_8.svg", plot = dr6, width = 22, height = 15, units = "cm")
 
 dr6
 ```
