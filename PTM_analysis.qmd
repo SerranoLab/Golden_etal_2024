@@ -43,6 +43,11 @@ library(kableExtra)
 library(statsExpressions)
 library(colorRamp2)
 library(cowplot)
+library(ggrain)
+library(gapminder)
+library(devtools)
+library(introdataviz)
+library(rstatix)
 ```
 
 # Background
@@ -1582,7 +1587,7 @@ kable(combined_results, format = "html", caption = "Pairwise Comparisons of Sele
 
 # Method Validations
 
-:::::: {.panel-tabset .nav-pills}
+::::::::: {.panel-tabset .nav-pills}
 ### Gating Strategies
 
 **Goal:** Compare gating strategies to assess whether H3 biogenesis through cell cycle is driving differences in H3-PTMs
@@ -2244,43 +2249,33 @@ kable(drug_results_combined, format = "html", caption = "Pairwise Comparisons") 
   row_spec(0, bold = TRUE, color = "white", background = "#6e6ec7")
 ```
 
-#### Summary of conventional flow cytometry project 
+#### Summary of conventional flow cytometry project
 
++---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+
+| **Cell line**       | Scti-003A                                                                                                                                                                                              |        |
++---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+
+| **Differentiation** | induced Plutipotent Stem Cell (iPSC)                                                                                                                                                                   |        |
++---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+
+| **Treatment 1**     | DMSO control (4.x files)                                                                                                                                                                               |        |
++---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+
+| **Treatment 2**     | Trichostatin A (TSA) \| \| HDAC inhibitor, showed to increase H3K27ac (PMID: [23093607](https://pubmed.ncbi.nlm.nih.gov/23093607)). Expected outcome: increase in acetylation marks \|                 |        |
++---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+
+| **Treatment 3**     | Vorinostat (SAHA) (0.5, 0.75 and 1 µM) \| \| HDAC inhibitor, showed to increase H3K9ac (PMID: [28978082](https://pubmed.ncbi.nlm.nih.gov/28978082)). Expected outcome: increased acetylation marks. \| |        |
++---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+
+| **Replicates**      | 3 biological replicates per experimental group                                                                                                                                                         |        |
++---------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+
 
-+---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
-| **Cell line**       | Scti-003A                                                                                                                                                |
-+---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
-| **Differentiation** | induced Plutipotent Stem Cell (iPSC)                                                                                                                     |
-+---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
-| **Treatment 1**     | DMSO control (4.x files)                                                                                                                                           |
-+---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
-| **Treatment 2**     | Trichostatin A (TSA)                                                                                                                    |
-|                     |                                                                                                                                                          |
-|                     | HDAC inhibitor, showed to increase H3K27ac (PMID: [23093607](https://pubmed.ncbi.nlm.nih.gov/23093607)). Expected outcome: increase in acetylation marks |
-+---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
-| **Treatment 3**     | Vorinostat (SAHA) (0.5, 0.75 and 1 µM)                                                                                                                      |
-|                     |                                                                                                                                                          |
-|                     | HDAC inhibitor, showed to increase H3K9ac (PMID: [28978082](https://pubmed.ncbi.nlm.nih.gov/28978082)). Expected outcome: increased acetylation marks.   |
-+---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
-| **Replicates**      | 3 biological replicates per experimental group                                                                                                           |
-+---------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-::: callout-gradient
+:::: callout-gradient
 ::: callout-note
 Features name were not modified on OMIQ. Features are as follow: H3K9ac and H3K27ac: PE; Total H3: APC
 :::
-:::
+::::
 
 ::: callout-warning
-OMIQ workflow: Blank cpontrols were acquired for gating but are not included in this downstream analysis. Sampling was performed as max equal because TSA treatment substantially reduced the number of cells.
+OMIQ workflow: Blank controls were acquired for gating but are not included in this downstream analysis. Sampling was performed as max equal because TSA treatment substantially reduced the number of cells.
 :::
 
-**Data pre-processing**
-* Files were concatenated by treatment when downloaded
-* files are coded so that 1.1, 1.2 and 1.3 (2.x, 3.x, 4.x) are biological replicates of each treatment. To prevent confusion, I added *treatment* column with this information.
-* Kept original OMIQ files un-altered but generated a concatenated file per feature located in the input folder that contains all the necessary information for proper analysis. 
-* Files will be transform to long format individually and then merged
-
+**Data pre-processing** \* Files were concatenated by treatment when downloaded \* files are coded so that 1.1, 1.2 and 1.3 (2.x, 3.x, 4.x) are biological replicates of each treatment. To prevent confusion, I added *treatment* column with this information. \* Kept original OMIQ files un-altered but generated a concatenated file per feature located in the input folder that contains all the necessary information for proper analysis. \* Files will be transform to long format individually and then merged
 
 Once we have both cvs with the right annotations and columns, each file is loaded, shaped to long format and then merged
 
@@ -2345,7 +2340,6 @@ dfc$treatment <- factor(dfc$treatment, levels = c("DMSO", "SAHA 05 um", "SAHA 07
 # str(dfc)
 ```
 
-
 #### Density plots for manual gates
 
 Density plots depicting all features per cluster will offer resolution on the distribution of each H3-PTM within the clusters.
@@ -2353,7 +2347,6 @@ Density plots depicting all features per cluster will offer resolution on the di
 From [R Gallery](https://r-graph-gallery.com/135-stacked-density-graph.html)
 
 *Supplementary figure S3:* Conventional flow cytometry
-
 
 ```{r}
 #| fig.align: center
@@ -2397,7 +2390,6 @@ ggsave("output/SVG/density_plot_8.svg", plot = dr6, width = 22, height = 15, uni
 
 dr6
 ```
-
 
 #### Statistical analysis to assess the effect of drug treatments in each feature by conventional flow cytometry
 
@@ -2457,7 +2449,6 @@ ggsave("output/feature_violin_plots/Validation/violin_strd_plot_10.png", width =
 ggsave("output/feature_violin_plots/Validation/violin_strd_plot_10.svg", plot = vpl3, width = 35, height = 17, units = "cm")
 
 ```
-
 
 ```{r}
 #| fig.align: center
@@ -2614,9 +2605,376 @@ ggsave("output/feature_violin_plots/Validation/density_combined_strd_plot_stdg.s
 
 
 ```
+::::
 
 
-::::::
+# Assessment of H3K4 methylation marks in a KMT2D LoF model
+
+Goal: 
+
+## Experimental Design
+
++-------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Cell line   | WTC11 KMT2D10.4. Isogenic CRISPR/Cas9 2bp deletion in exon 2                                                                                                                                              |
++=============+===========================================================================================================================================================================================================+
+| Sample      | iPSC cells                                                                                                                                                                                                |
++-------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Treatment 1 | DMSO control                                                                                                                                                                                              |
++-------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Treatment 2 | CPI-455 HCl (Catalog #S8287) (10, 20, 50 µM) Specific KDM5 inhibitor thus elevating global levels of H3K4me3 (PMID:28432280)                                                                              |
++-------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Treatment 3 | OICR-9429 (Catalog #S7833) (10, 20, 50 µM) Potent antagonist of the interaction of WDR5 with peptide regions of KMT2 and Histone 3 thus reducing global levels of H3K4 methylation marks (PMID: 26167872) |
++-------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Replicates  | 3 biological replicates per experimental group                                                                                                                                                            |
++-------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Acquisition | Conventional Flow Cytometry                                                                                                                                                                               |
++-------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+::: callout-note
+OMIQ workflow: Blank controls were acquired for gating but are not included in this downstream analysis. Random cell sampling was performed to obtain equal number of cells per H3K4 methylation mark to be able to compare them across genotypes. Events were exported from H3 positive gate for every H3K4 methylation mark
+:::
+
+:::: {.panel-tabset .nav-pills}
+
+## Comparison Between Genotypes
+
+### Data formatting
+
+::: callout-note
+The fluorescence intensity column was named as mfi in data files and it is misleading. Note that this is not the median value but the fluorescence value of each feature in each cell.
+:::
+
+```{r, warning=FALSE}
+# Load data
+data <- data_genotype <- read_csv("input/data_genotype.csv", 
+                                  col_types = cols(event = col_skip(), 
+                                  OmiqFileIndex = col_skip(), sample = col_skip()))
+#head(data)
+
+
+
+# Note: I named the fluorescence intensity column as mfi and it is misleading. Note that this is not the median value but the fluorescence value of each feature in each cell.
+
+df <- data
+summary_df <- summary(df)
+# Display summary in HTML using kable
+kable(summary_df, format = "html", caption = "Summary of Data Frame")
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Z-score normalize the mfi variable
+df$mfi_z <- scale(df$mfi)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Data summary after scaling
+summary_df2 <- summary(df)
+# Display summary in HTML using kable
+kable(summary_df2, format = "html", caption = "Summary of Data Frame with scaled values")
+```
+
+Z-score column was added to data
+
+```{r, fig.align="center", fig.width=8, fig.height=6, fig.cap="Figure 1: Assessment of data scaling"}
+# Create histograms for original and normalized mfi variables
+
+# Filter the data
+filtered_WTC11 <- df[df$genotype == "WTC11", ]
+filtered_KMT2D <- df[df$genotype == "KMT2D10.4", ]
+
+# Create the histogram for the filtered data
+par(mfrow = c(2, 2))
+hist(filtered_WTC11$mfi, main = "WTC11", xlab = "Initial Fluorescence values")
+hist(filtered_WTC11$mfi_z, main = "WTC11", xlab = "Z-scores")
+hist(filtered_KMT2D$mfi, main = "KMT2D10.4", xlab = "Initial Fluorescence values")
+hist(filtered_KMT2D$mfi_z, main = "KMT2D10.4", xlab = "Z-scores")
+
+```
+
+```{r, warning=FALSE}
+# Convert columns to factors with specific levels
+df$treatment <- factor(df$treatment, levels = c("DMSO", "CPI", "OICR"))
+df$genotype <- factor(df$genotype, levels = c("WTC11", "KMT2D10.4"))
+df$concentration <- factor(df$concentration, levels = c("0uM", "10uM", "20uM", "50uM"))
+df$feature <- factor(df$feature, levels = c("H3K4me1", "H3K4me2", "H3K4me3"))
+
+str(df)
+```
+
+
+```{r}
+#| warning: false
+
+# Load data
+data_genotype_dmso <- read_csv("input/data_genotype_dmso.csv", 
+                                col_types = cols(gate = col_factor(levels = c("H3")), 
+                                OmiqFileIndex = col_skip(), 
+                                genotype = col_factor(levels = c("WTC11", "KMT2D10.4")), 
+                                feature = col_factor(levels = c("H3K4me1", "H3K4me2", "H3K4me3"))))
+# head(data_genotype_dmso)
+
+
+
+# Note: I named the fluorescence intensity column as mfi and it is misleading. Note that this is not the median value but the fluorescence value of each feature in each cell.
+
+df <- data_genotype_dmso
+summary_df <- summary(df)
+# Display summary in HTML using kable
+kable(summary_df, format = "html", caption = "Summary of Data Frame")
+```
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Z-score normalize the mfi variable
+df$mfi_z <- scale(df$mfi)
+```
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Data summary after scaling
+summary_df2 <- summary(df)
+# Display summary in HTML using kable
+kable(summary_df2, format = "html", caption = "Summary of Data Frame with scaled values")
+```
+
+Z-score column was added to data
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| echo: false
+#| warning: false
+#| fig-cap: "Scaled Data Assessment"
+
+# Create histograms for original and normalized mfi variables
+
+# Filter the data
+filtered_WTC11 <- df[df$genotype == "WTC11", ]
+filtered_KMT2D <- df[df$genotype == "KMT2D10.4", ]
+
+# Create the histogram for the filtered data
+par(mfrow = c(2, 2))
+hist(filtered_WTC11$mfi, main = "WTC11", xlab = "Initial Fluorescence values")
+hist(filtered_WTC11$mfi_z, main = "WTC11", xlab = "Z-scores")
+hist(filtered_KMT2D$mfi, main = "KMT2D10.4", xlab = "Initial Fluorescence values")
+hist(filtered_KMT2D$mfi_z, main = "KMT2D10.4", xlab = "Z-scores")
+
+```
+
+### Statistical Analysis
+
+```{r}
+
+df_me1 <- df[df$feature == "H3K4me1", ]
+df_me2 <- df[df$feature == "H3K4me2", ]
+df_me3 <- df[df$feature == "H3K4me3", ]
+
+g1 <- ggbetweenstats(
+  data = df_me1,
+  x = genotype,
+  y = mfi,
+  ylab = "Fluorescence Intensity",
+  type = "np",
+  pairwise.display = "all",
+  ggplot.component = list(
+    scale_color_manual(values = c("#009E73", "#D55E00")),
+    scale_fill_manual(values = c("#009E73", "#D55E00"))
+  )
+)
+
+g2 <- ggbetweenstats(
+  data = df_me2,
+  x = genotype,
+  y = mfi,
+  ylab = "Fluorescence Intensity",
+  type = "np",
+  pairwise.display = "all",
+  ggplot.component = list(
+    scale_color_manual(values = c("#009E73", "#D55E00")),
+    scale_fill_manual(values = c("#009E73", "#D55E00"))
+  )
+)
+
+g3 <- ggbetweenstats(
+  data = df_me3,
+  x = genotype,
+  y = mfi,
+  ylab = "Fluorescence Intensity",
+  type = "np",
+  pairwise.display = "all",
+  ggplot.component = list(
+    scale_color_manual(values = c("#009E73", "#D55E00")),
+    scale_fill_manual(values = c("#009E73", "#D55E00"))
+  )
+)
+
+com1 <- combine_plots(
+  list(g1, g2, g3),
+  plotgrid.args = list(nrow = 3),
+  annotation.args = list(
+    title = "Assessment of KMT2D LoF in H3K4 methylation marks in iPSC",
+    caption = "Conventional Flow Cytometry"
+  )
+)
+
+com1 
+
+ggsave("output/PNG/genotype_violin_1.png", plot = com1, width = 16, height = 25, units = "cm", dpi = 600, bg = "white")
+ggsave("output/SVG/genotype_violin_11.svg", plot = com1, width = 16, height = 25, units = "cm")
+```
+
+### Pairwise Comparisons between genotypes
+
+```{r}
+#extract pairwise comparison results
+  # Perform pairwise comparisons for each data frame
+pairwise_me1 <- ggstatsplot::pairwise_comparisons(
+  data = df_me1,
+  x = genotype, 
+  y = mfi,
+  type = "np",  # Non-parametric test
+  p.adjust.method = "fdr"  # Adjust p-values for multiple comparisons
+)
+
+pairwise_me2 <- ggstatsplot::pairwise_comparisons(
+  data = df_me2,
+  x = genotype, 
+  y = mfi,
+  type = "np",
+  p.adjust.method = "fdr"
+)
+
+pairwise_me3 <- ggstatsplot::pairwise_comparisons(
+  data = df_me3,
+  x = genotype, 
+  y = mfi,
+  type = "np",
+  p.adjust.method = "fdr"
+)
+
+# Return all results as a list
+list(pairwise_me1 = pairwise_me1, pairwise_me2 = pairwise_me2, pairwise_me3 = pairwise_me3)
+
+```
+
+```{r}
+
+# Run pairwise comparisons for each data frame, adding a 'feature' column
+pairwise_me1 <- ggstatsplot::pairwise_comparisons(
+  data = df_me1,
+  x = genotype, 
+  y = mfi,
+  type = "np",
+  p.adjust.method = "fdr"
+) %>% mutate(feature = "H3K4me1")
+
+pairwise_me2 <- ggstatsplot::pairwise_comparisons(
+  data = df_me2,
+  x = genotype, 
+  y = mfi,
+  type = "np",
+  p.adjust.method = "fdr"
+) %>% mutate(feature = "H3K4me2")
+
+pairwise_me3 <- ggstatsplot::pairwise_comparisons(
+  data = df_me3,
+  x = genotype, 
+  y = mfi,
+  type = "np",
+  p.adjust.method = "fdr"
+) %>% mutate(feature = "H3K4me3")
+
+# Combine all pairwise comparisons into a single table
+combined_pairwise <- bind_rows(pairwise_me1, pairwise_me2, pairwise_me3) %>%
+  mutate(Significance = ifelse(p.value < 0.05, "Significant", "Not Significant"))
+
+# Print the combined table as a styled kable
+kable(combined_pairwise, caption = "Combined Pairwise Comparisons for H3K4 Methylation Marks") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+### Note on small of efect size
+
+While the difference between groups is statistically significant, the effect size is small (rank-biserial correlation of 0.08). The large sample size contributes to the statistical significance, but the small effect size suggests that the practical or biological difference between groups might not be meaningful.
+
+A Mann-Whitney U test was performed to compare fluorescence intensity between WTC11 and KMT2D10.4 iPSCs for H3K4 methylation marks. Results showed a statistically significant difference between groups, with ( W = 9.35 \times 10\^6 ), ( p = 1.83 \times 10\^{-9} ). The rank-biserial correlation, a measure of effect size for non-parametric tests, was ( \hat{r}\_{\text{biserial}}\^{\text{rank}} = 0.08 ), with a 95% confidence interval of \[0.05, 0.10\], indicating a small effect size. The large sample size (( n = 8,336 )) likely contributed to the statistical significance despite the small effect magnitude. Thus, while the difference between genotypes is statistically significant, the modest effect size suggests that the biological or practical relevance of this difference may be limited.
+
+
+### Statistical Analysis of H3K4 Methylation Marks
+
+A Mann-Whitney U test was performed to compare fluorescence intensity between the WTC11 and KMT2D10.4 genotypes for H3K4 methylation marks. Results showed a statistically significant difference between groups, with \( W = 9.35 \times 10^6 \), \( p = 1.83 \times 10^{-9} \). The rank-biserial correlation, a measure of effect size for non-parametric tests, was \( \hat{r}_{\text{biserial}}^{\text{rank}} = 0.08 \), with a 95% confidence interval of [0.05, 0.10], indicating a small effect size. The large sample size ($n = 8,336$) likely contributed to the statistical significance despite the small effect magnitude. Thus, while the difference between genotypes is statistically significant, the modest effect size suggests that the biological or practical relevance of this difference may be limited.
+
+
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| echo: false
+
+# install package devtools::install_github("psyteachr/introdataviz")
+# install.packages("gtable")
+# I had to install install.packages("faux") first
+rain_height <- .1
+
+rp1 <- ggplot(df, aes(x = "", y = mfi, fill = genotype)) +
+  # clouds with thinner density lines
+  introdataviz::geom_flat_violin(trim = FALSE, alpha = 0.5,
+                                 position = position_nudge(x = rain_height + .05),
+                                 size = 0.3) + # Adjust density line thickness
+  # rain
+  geom_point(aes(color = genotype, fill = genotype), shape = 21, size = 1.5, alpha = .5, 
+             show.legend = FALSE, position = position_jitter(width = rain_height, height = 0), 
+             stroke = 0.5) +
+  # boxplots with thinner median line
+  geom_boxplot(width = rain_height, alpha = 0.4, show.legend = FALSE, outlier.shape = NA,
+               position = position_nudge(x = -rain_height * 2),
+               linewidth = 0.5) + # Adjust boxplot line thickness
+  # median and IQR with gray outline and fill by genotype
+  stat_summary(fun.data = median_iqr, geom = "pointrange", 
+               mapping = aes(fill = genotype), shape = 21, size = 0.7, color = "#252525", 
+               stroke = 0.8, position = position_nudge(x = rain_height * 3)) +
+  # adjust layout
+  scale_x_discrete(name = "", expand = c(rain_height * 3, 0, 0, 0.7)) +
+  scale_y_continuous(name = "Fluorescence Intensity (Arcsinh Transformation)",
+                     breaks = seq(0, 4.5), 
+                     limits = c(0, 4.5)) +
+  coord_flip() +
+  facet_wrap(~factor(feature, 
+                     levels = c("H3K4me1", "H3K4me2", "H3K4me3"), 
+                     labels = c("H3K4me1", "H3K4me2", "H3K4me3")), nrow = 3) +
+  scale_fill_manual(values = c("#009E73", "#D55E00"), name = "Genotype") +
+  scale_color_manual(values = c("#009E73", "#D55E00")) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 12),
+    legend.background = element_rect(fill = "white", color = "white"),
+    strip.text = element_text(size = 16, face = "bold"),
+    axis.title.x = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 12))
+rp1
+
+ggsave("output/PNG/rainplot_plot_1.png", plot = rp1, width = 18, height = 20, units = "cm", dpi = 600, bg = "white")
+ggsave("output/SVG/rainplot_plot_1.svg", plot = rp1, width = 18, height = 20, units = "cm")
+
+```
+
+## Drug Treatments 
+
+
+
+
+::::
+
+:::
 
 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
 
