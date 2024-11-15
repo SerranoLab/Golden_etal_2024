@@ -2608,9 +2608,7 @@ ggsave("output/feature_violin_plots/Validation/density_combined_strd_plot_stdg.s
 ::::
 
 
-# Assessment of H3K4 methylation marks in a KMT2D LoF model
-
-Goal: 
+# H3K4 methylation marks in a KMT2D LoF model
 
 ## Experimental Design
 
@@ -2643,63 +2641,6 @@ OMIQ workflow: Blank controls were acquired for gating but are not included in t
 ::: callout-note
 The fluorescence intensity column was named as mfi in data files and it is misleading. Note that this is not the median value but the fluorescence value of each feature in each cell.
 :::
-
-```{r, warning=FALSE}
-# Load data
-data <- data_genotype <- read_csv("input/data_genotype.csv", 
-                                  col_types = cols(event = col_skip(), 
-                                  OmiqFileIndex = col_skip(), sample = col_skip()))
-#head(data)
-
-
-
-# Note: I named the fluorescence intensity column as mfi and it is misleading. Note that this is not the median value but the fluorescence value of each feature in each cell.
-
-df <- data
-summary_df <- summary(df)
-# Display summary in HTML using kable
-kable(summary_df, format = "html", caption = "Summary of Data Frame")
-```
-
-```{r, echo=FALSE, warning=FALSE}
-# Z-score normalize the mfi variable
-df$mfi_z <- scale(df$mfi)
-```
-
-```{r, echo=FALSE, warning=FALSE}
-# Data summary after scaling
-summary_df2 <- summary(df)
-# Display summary in HTML using kable
-kable(summary_df2, format = "html", caption = "Summary of Data Frame with scaled values")
-```
-
-Z-score column was added to data
-
-```{r, fig.align="center", fig.width=8, fig.height=6, fig.cap="Figure 1: Assessment of data scaling"}
-# Create histograms for original and normalized mfi variables
-
-# Filter the data
-filtered_WTC11 <- df[df$genotype == "WTC11", ]
-filtered_KMT2D <- df[df$genotype == "KMT2D10.4", ]
-
-# Create the histogram for the filtered data
-par(mfrow = c(2, 2))
-hist(filtered_WTC11$mfi, main = "WTC11", xlab = "Initial Fluorescence values")
-hist(filtered_WTC11$mfi_z, main = "WTC11", xlab = "Z-scores")
-hist(filtered_KMT2D$mfi, main = "KMT2D10.4", xlab = "Initial Fluorescence values")
-hist(filtered_KMT2D$mfi_z, main = "KMT2D10.4", xlab = "Z-scores")
-
-```
-
-```{r, warning=FALSE}
-# Convert columns to factors with specific levels
-df$treatment <- factor(df$treatment, levels = c("DMSO", "CPI", "OICR"))
-df$genotype <- factor(df$genotype, levels = c("WTC11", "KMT2D10.4"))
-df$concentration <- factor(df$concentration, levels = c("0uM", "10uM", "20uM", "50uM"))
-df$feature <- factor(df$feature, levels = c("H3K4me1", "H3K4me2", "H3K4me3"))
-
-str(df)
-```
 
 
 ```{r}
@@ -2746,7 +2687,6 @@ Z-score column was added to data
 ```{r}
 #| fig.align: center
 #| out.width: 100%
-#| echo: false
 #| warning: false
 #| fig-cap: "Scaled Data Assessment"
 
@@ -2765,9 +2705,14 @@ hist(filtered_KMT2D$mfi_z, main = "KMT2D10.4", xlab = "Z-scores")
 
 ```
 
-### Statistical Analysis
+### Violin Plots and Statistical Analysis
 
-```{r}
+```{r, fig.height: 9, fig.with: 6}
+#| fig.align: center
+#| out.width: 100%
+#| fig.height: 9
+#| fig.with: 6
+#| warning: false
 
 df_me1 <- df[df$feature == "H3K4me1", ]
 df_me2 <- df[df$feature == "H3K4me2", ]
@@ -2823,43 +2768,13 @@ com1 <- combine_plots(
 
 com1 
 
-ggsave("output/PNG/genotype_violin_1.png", plot = com1, width = 16, height = 25, units = "cm", dpi = 600, bg = "white")
+ggsave("output/PNG/genotype_violin_1.png", plot = com1, width = 16, height = 36, units = "cm", dpi = 300, bg = "white")
 ggsave("output/SVG/genotype_violin_11.svg", plot = com1, width = 16, height = 25, units = "cm")
 ```
 
 ### Pairwise Comparisons between genotypes
 
-```{r}
-#extract pairwise comparison results
-  # Perform pairwise comparisons for each data frame
-pairwise_me1 <- ggstatsplot::pairwise_comparisons(
-  data = df_me1,
-  x = genotype, 
-  y = mfi,
-  type = "np",  # Non-parametric test
-  p.adjust.method = "fdr"  # Adjust p-values for multiple comparisons
-)
 
-pairwise_me2 <- ggstatsplot::pairwise_comparisons(
-  data = df_me2,
-  x = genotype, 
-  y = mfi,
-  type = "np",
-  p.adjust.method = "fdr"
-)
-
-pairwise_me3 <- ggstatsplot::pairwise_comparisons(
-  data = df_me3,
-  x = genotype, 
-  y = mfi,
-  type = "np",
-  p.adjust.method = "fdr"
-)
-
-# Return all results as a list
-list(pairwise_me1 = pairwise_me1, pairwise_me2 = pairwise_me2, pairwise_me3 = pairwise_me3)
-
-```
 
 ```{r}
 
@@ -2898,22 +2813,18 @@ kable(combined_pairwise, caption = "Combined Pairwise Comparisons for H3K4 Methy
 
 ```
 
-### Note on small of efect size
+### Note about the small efect size
 
-While the difference between groups is statistically significant, the effect size is small (rank-biserial correlation of 0.08). The large sample size contributes to the statistical significance, but the small effect size suggests that the practical or biological difference between groups might not be meaningful.
-
-A Mann-Whitney U test was performed to compare fluorescence intensity between WTC11 and KMT2D10.4 iPSCs for H3K4 methylation marks. Results showed a statistically significant difference between groups, with ( W = 9.35 \times 10\^6 ), ( p = 1.83 \times 10\^{-9} ). The rank-biserial correlation, a measure of effect size for non-parametric tests, was ( \hat{r}\_{\text{biserial}}\^{\text{rank}} = 0.08 ), with a 95% confidence interval of \[0.05, 0.10\], indicating a small effect size. The large sample size (( n = 8,336 )) likely contributed to the statistical significance despite the small effect magnitude. Thus, while the difference between genotypes is statistically significant, the modest effect size suggests that the biological or practical relevance of this difference may be limited.
+Mann-Whitney U test was performed to compare fluorescence intensity between WTC11 and KMT2D10.4 iPSC for H3K4 methylation marks. Results showed a statistically significant difference between groups, with $W = 9.35 \times 10^6$, $p = 1.83 \times 10^{-9}$. The rank-biserial correlation, a measure of effect size for non-parametric tests, was $\hat{r}_{\text{biserial}}^{\text{rank}} = 0.08$, with a 95% confidence interval of $[0.05, 0.10]$, indicating a small effect size. The large sample size ($n = 8,336$) likely contributed to the statistical significance despite the small effect magnitude. Thus, while the difference between genotypes is statistically significant, the modest effect size suggests that the biological or practical relevance of this difference may be limited.
 
 
-### Statistical Analysis of H3K4 Methylation Marks
-
-A Mann-Whitney U test was performed to compare fluorescence intensity between the WTC11 and KMT2D10.4 genotypes for H3K4 methylation marks. Results showed a statistically significant difference between groups, with \( W = 9.35 \times 10^6 \), \( p = 1.83 \times 10^{-9} \). The rank-biserial correlation, a measure of effect size for non-parametric tests, was \( \hat{r}_{\text{biserial}}^{\text{rank}} = 0.08 \), with a 95% confidence interval of [0.05, 0.10], indicating a small effect size. The large sample size ($n = 8,336$) likely contributed to the statistical significance despite the small effect magnitude. Thus, while the difference between genotypes is statistically significant, the modest effect size suggests that the biological or practical relevance of this difference may be limited.
-
+### Rain Plots to assess H3K4 methylation marks distributions
 
 
 ```{r}
 #| fig.align: center
 #| out.width: 100%
+#| out-height: 100%
 #| echo: false
 
 # install package devtools::install_github("psyteachr/introdataviz")
@@ -2955,11 +2866,11 @@ rp1 <- ggplot(df, aes(x = "", y = mfi, fill = genotype)) +
     panel.grid.minor = element_blank(),
     legend.position = "top",
     legend.title = element_text(face = "bold"),
-    legend.text = element_text(size = 12),
+    legend.text = element_text(size = 10),
     legend.background = element_rect(fill = "white", color = "white"),
-    strip.text = element_text(size = 16, face = "bold"),
-    axis.title.x = element_text(size = 14, face = "bold"),
-    axis.text = element_text(size = 12))
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.title.x = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10))
 rp1
 
 ggsave("output/PNG/rainplot_plot_1.png", plot = rp1, width = 18, height = 20, units = "cm", dpi = 600, bg = "white")
@@ -2967,27 +2878,525 @@ ggsave("output/SVG/rainplot_plot_1.svg", plot = rp1, width = 18, height = 20, un
 
 ```
 
-## Drug Treatments 
+## Drug Treatments to increase or decrease gloal H3K4 methylation marks
+
+```{r, warning=FALSE}
+# Load data
+data <- data_genotype <- read_csv("input/data_genotype.csv", 
+                                  col_types = cols(event = col_skip(), 
+                                  OmiqFileIndex = col_skip(), sample = col_skip()))
+#head(data)
 
 
 
+# Note: I named the fluorescence intensity column as mfi and it is misleading. Note that this is not the median value but the fluorescence value of each feature in each cell.
+
+df <- data
+summary_df <- summary(df)
+# Display summary in HTML using kable
+kable(summary_df, format = "html", caption = "Summary of Data Frame")
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Z-score normalize the mfi variable
+df$mfi_z <- scale(df$mfi)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Data summary after scaling
+summary_df3 <- summary(df)
+# Display summary in HTML using kable
+kable(summary_df3, format = "html", caption = "Summary of Data Frame with scaled values")
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Convert columns to factors with specific levels
+df$treatment <- factor(df$treatment, levels = c("DMSO", "CPI", "OICR"))
+df$genotype <- factor(df$genotype, levels = c("WTC11", "KMT2D10.4"))
+df$concentration <- factor(df$concentration, levels = c("0uM", "10uM", "20uM", "50uM"))
+df$feature <- factor(df$feature, levels = c("H3K4me1", "H3K4me2", "H3K4me3"))
+
+#str(df)
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| 
+# Ensure that 'concentration' is a factor with specified levels
+df$concentration <- factor(df$concentration, levels = c("0uM", "10uM", "20uM", "50uM"))
+
+# Create a separate subset for DMSO to be used as a control
+df_DMSO <- df %>% filter(treatment == "DMSO")
+
+# Split data by genotype and combine DMSO with each treatment for each genotype. With this, DMSO will be plotted as 0uM in each treatment
+# For WTC11
+df_WT_CPI <- df %>% 
+  filter(genotype == "WTC11", treatment == "CPI") %>%
+  bind_rows(df_DMSO %>% filter(genotype == "WTC11") %>% mutate(treatment = "CPI"))
+
+df_WT_OICR <- df %>% 
+  filter(genotype == "WTC11", treatment == "OICR") %>%
+  bind_rows(df_DMSO %>% filter(genotype == "WTC11") %>% mutate(treatment = "OICR"))
+
+# For KMT2D10.4
+df_KM_CPI <- df %>% 
+  filter(genotype == "KMT2D10.4", treatment == "CPI") %>%
+  bind_rows(df_DMSO %>% filter(genotype == "KMT2D10.4") %>% mutate(treatment = "CPI"))
+
+df_KM_OICR <- df %>% 
+  filter(genotype == "KMT2D10.4", treatment == "OICR") %>%
+  bind_rows(df_DMSO %>% filter(genotype == "KMT2D10.4") %>% mutate(treatment = "OICR"))
+
+
+```
+
+
+### CPI treatment in WTC11
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| out-height: 100%
+#| warning: false
+
+rain_height <- .1
+
+
+rp2 <- ggplot(df_WT_CPI, aes(x = "", y = mfi, fill = concentration)) +
+  # clouds with thinner density lines
+  introdataviz::geom_flat_violin(trim = FALSE, alpha = 0.5,
+                                 position = position_nudge(x = rain_height + .05),
+                                 size = 0.3) + # Adjust density line thickness
+  # rain
+  geom_point(aes(color = concentration), shape = 21, size = 1.5, alpha = .3, 
+             show.legend = FALSE, position = position_jitter(width = rain_height, height = 0), 
+             stroke = 0.5) +
+  # boxplots with thinner median line
+  geom_boxplot(width = rain_height, alpha = 0.4, show.legend = FALSE, outlier.shape = NA,
+               position = position_nudge(x = -rain_height * 2),
+               linewidth = 0.5) + # Adjust boxplot line thickness
+  # median and IQR with gray outline and fill by concentration
+  stat_summary(fun.data = median_iqr, geom = "pointrange", 
+               mapping = aes(fill = concentration), shape = 21, size = 0.7, color = "#252525", 
+               stroke = 0.8, position = position_nudge(x = rain_height * 3)) +
+  # adjust layout
+  scale_x_discrete(name = "", expand = c(rain_height * 3, 0, 0, 0.7)) +
+  scale_y_continuous(name = "Fluorescence Intensity (Arcsinh Transformation)",
+                     breaks = seq(0, 4.5), 
+                     limits = c(0, 4.5)) +
+  coord_flip() +
+  facet_wrap(~factor(feature, 
+                     levels = c("H3K4me1", "H3K4me2", "H3K4me3"), 
+                     labels = c("H3K4me1", "H3K4me2", "H3K4me3")), nrow = 3) +
+  scale_fill_manual(values = c("#999999", "#56B4E9", "#009E73", "#E69F00"), name = "CPI Concentration") +
+  scale_color_manual(values = c("#999999", "#56B4E9", "#009E73", "#E69F00")) +
+  labs(
+    title = "Assessment of H3K4 methylation marks in WTC11 iPSC lines treated with CPI",
+    subtitle = "CPI is a KDM5 inhibitor, thus elevating global levels of H3K4me3"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.background = element_rect(fill = "white", color = "white"),
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.title.x = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10)
+  )
+
+rp2
+
+
+
+ggsave("output/PNG/rainplot_plot_WT_CPI.png", plot = rp2, width = 18, height = 20, units = "cm", dpi = 600, bg = "white")
+ggsave("output/SVG/rainplot_plot_WT_CPI.svg", plot = rp2, width = 18, height = 20, units = "cm")
+
+```
+
+### OICR treatment in WTC11
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| out-height: 100%
+#| warning: false
+
+rain_height <- .1
+
+
+rp3 <- ggplot(df_WT_OICR, aes(x = "", y = mfi, fill = concentration)) +
+  # clouds with thinner density lines
+  introdataviz::geom_flat_violin(trim = FALSE, alpha = 0.5,
+                                 position = position_nudge(x = rain_height + .05),
+                                 size = 0.3) + # Adjust density line thickness
+  # rain
+  geom_point(aes(color = concentration), shape = 21, size = 1.5, alpha = .3, 
+             show.legend = FALSE, position = position_jitter(width = rain_height, height = 0), 
+             stroke = 0.5) +
+  # boxplots with thinner median line
+  geom_boxplot(width = rain_height, alpha = 0.4, show.legend = FALSE, outlier.shape = NA,
+               position = position_nudge(x = -rain_height * 2),
+               linewidth = 0.5) + # Adjust boxplot line thickness
+  # median and IQR with gray outline and fill by concentration
+  stat_summary(fun.data = median_iqr, geom = "pointrange", 
+               mapping = aes(fill = concentration), shape = 21, size = 0.7, color = "#252525", 
+               stroke = 0.8, position = position_nudge(x = rain_height * 3)) +
+  # adjust layout
+  scale_x_discrete(name = "", expand = c(rain_height * 3, 0, 0, 0.7)) +
+  scale_y_continuous(name = "Fluorescence Intensity (Arcsinh Transformation)",
+                     breaks = seq(0, 4.5), 
+                     limits = c(0, 4.5)) +
+  coord_flip() +
+  facet_wrap(~factor(feature, 
+                     levels = c("H3K4me1", "H3K4me2", "H3K4me3"), 
+                     labels = c("H3K4me1", "H3K4me2", "H3K4me3")), nrow = 3) +
+  scale_fill_manual(values =  c("#999999", "#0072B2", "#D55E00", "#CC79A7"), name = "OICR Concentration") +
+  scale_color_manual(values = c("#999999", "#0072B2", "#D55E00", "#CC79A7")) +
+  labs(
+    title = "Assessment of H3K4 methylation marks in WTC11 iPSC lines treated with OICR",
+    subtitle = "OICR is an antagonist of the interaction of WDR5 with peptide regions of KMT2 and Histone 3 reducing global levels of H3K4 methylation"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.background = element_rect(fill = "white", color = "white"),
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.title.x = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10)
+  )
+
+rp3
+
+
+
+ggsave("output/PNG/rainplot_plot_WT_OICR.png", plot = rp3, width = 18, height = 20, units = "cm", dpi = 600, bg = "white")
+ggsave("output/SVG/rainplot_plot_WT_OICR.svg", plot = rp3, width = 18, height = 20, units = "cm")
+
+```
+
+
+### CPI treatment in KMT2D10.4
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| out-height: 100%
+#| warning: false
+
+rain_height <- .1
+
+
+rp4 <- ggplot(df_KM_CPI, aes(x = "", y = mfi, fill = concentration)) +
+  # clouds with thinner density lines
+  introdataviz::geom_flat_violin(trim = FALSE, alpha = 0.5,
+                                 position = position_nudge(x = rain_height + .05),
+                                 size = 0.3) + # Adjust density line thickness
+  # rain
+  geom_point(aes(color = concentration), shape = 21, size = 1.5, alpha = .3, 
+             show.legend = FALSE, position = position_jitter(width = rain_height, height = 0), 
+             stroke = 0.5) +
+  # boxplots with thinner median line
+  geom_boxplot(width = rain_height, alpha = 0.4, show.legend = FALSE, outlier.shape = NA,
+               position = position_nudge(x = -rain_height * 2),
+               linewidth = 0.5) + # Adjust boxplot line thickness
+  # median and IQR with gray outline and fill by concentration
+  stat_summary(fun.data = median_iqr, geom = "pointrange", 
+               mapping = aes(fill = concentration), shape = 21, size = 0.7, color = "#252525", 
+               stroke = 0.8, position = position_nudge(x = rain_height * 3)) +
+  # adjust layout
+  scale_x_discrete(name = "", expand = c(rain_height * 3, 0, 0, 0.7)) +
+  scale_y_continuous(name = "Fluorescence Intensity (Arcsinh Transformation)",
+                     breaks = seq(0, 4.5), 
+                     limits = c(0, 4.5)) +
+  coord_flip() +
+  facet_wrap(~factor(feature, 
+                     levels = c("H3K4me1", "H3K4me2", "H3K4me3"), 
+                     labels = c("H3K4me1", "H3K4me2", "H3K4me3")), nrow = 3) +
+  scale_fill_manual(values = c("#999999", "#56B4E9", "#009E73", "#E69F00"), name = "CPI Concentration") +
+  scale_color_manual(values = c("#999999", "#56B4E9", "#009E73", "#E69F00")) +
+  labs(
+    title = "Assessment of H3K4 methylation marks in KMT2D10.4 iPSC lines treated with CPI",
+    subtitle = "CPI is a KDM5 inhibitor, thus elevating global levels of H3K4me3"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.background = element_rect(fill = "white", color = "white"),
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.title.x = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10)
+  )
+
+rp4
+
+
+
+ggsave("output/PNG/rainplot_plot_KM_CPI.png", plot = rp4, width = 18, height = 20, units = "cm", dpi = 600, bg = "white")
+ggsave("output/SVG/rainplot_plot_KM_CPI.svg", plot = rp4, width = 18, height = 20, units = "cm")
+
+```
+
+### OICR treatment in KMT2D10.4
+
+```{r}
+#| fig.align: center
+#| out.width: 100%
+#| out-height: 100%
+#| warning: false
+
+rain_height <- .1
+
+
+rp5 <- ggplot(df_KM_OICR, aes(x = "", y = mfi, fill = concentration)) +
+  # clouds with thinner density lines
+  introdataviz::geom_flat_violin(trim = FALSE, alpha = 0.5,
+                                 position = position_nudge(x = rain_height + .05),
+                                 size = 0.3) + # Adjust density line thickness
+  # rain
+  geom_point(aes(color = concentration), shape = 21, size = 1.5, alpha = .3, 
+             show.legend = FALSE, position = position_jitter(width = rain_height, height = 0), 
+             stroke = 0.5) +
+  # boxplots with thinner median line
+  geom_boxplot(width = rain_height, alpha = 0.4, show.legend = FALSE, outlier.shape = NA,
+               position = position_nudge(x = -rain_height * 2),
+               linewidth = 0.5) + # Adjust boxplot line thickness
+  # median and IQR with gray outline and fill by concentration
+  stat_summary(fun.data = median_iqr, geom = "pointrange", 
+               mapping = aes(fill = concentration), shape = 21, size = 0.7, color = "#252525", 
+               stroke = 0.8, position = position_nudge(x = rain_height * 3)) +
+  # adjust layout
+  scale_x_discrete(name = "", expand = c(rain_height * 3, 0, 0, 0.7)) +
+  scale_y_continuous(name = "Fluorescence Intensity (Arcsinh Transformation)",
+                     breaks = seq(0, 4.5), 
+                     limits = c(0, 4.5)) +
+  coord_flip() +
+  facet_wrap(~factor(feature, 
+                     levels = c("H3K4me1", "H3K4me2", "H3K4me3"), 
+                     labels = c("H3K4me1", "H3K4me2", "H3K4me3")), nrow = 3) +
+  scale_fill_manual(values =  c("#999999", "#0072B2", "#D55E00", "#CC79A7"), name = "OICR Concentration") +
+  scale_color_manual(values = c("#999999", "#0072B2", "#D55E00", "#CC79A7")) +
+  labs(
+    title = "Assessment of H3K4 methylation marks in KMT2D10.4 iPSC lines treated with OICR",
+    subtitle = "OICR is an antagonist of the interaction of WDR5 with peptide regions of KMT2 and Histone 3 reducing global levels of H3K4 methylation"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_line(color = "lightgray", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    legend.text = element_text(size = 10),
+    legend.background = element_rect(fill = "white", color = "white"),
+    strip.text = element_text(size = 10, face = "bold"),
+    axis.title.x = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10)
+  )
+
+rp5
+
+
+
+ggsave("output/PNG/rainplot_plot_KM_OICR.png", plot = rp5, width = 18, height = 20, units = "cm", dpi = 600, bg = "white")
+ggsave("output/SVG/rainplot_plot_KM_OICR.svg", plot = rp5, width = 18, height = 20, units = "cm")
+
+```
+### Statistical analysis in drug treatments per genotype 
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Create a new column 'condition' by merging 'treatment' and 'concentration'
+df$condition <- with(df, paste(treatment, concentration, sep = "_"))
+
+# Convert 'condition' to a factor
+df$condition <- factor(df$condition, levels = c("DMSO_0uM", "CPI_10uM", "CPI_20uM", "CPI_50uM", "OICR_10uM", "OICR_20uM","OICR_50uM"))
+
+```
+
+```{r}
+
+#| warning: false
+
+
+# Fix subsamplint to 5000 events
+df_filtered <- df %>%
+  group_by(condition, feature, genotype) %>%
+  filter(n() >= 5000) %>%  # Keep only groups with at least 5000 events
+  slice_sample(n = 5000) %>% # when a category does not have 5000 events, then the condition is dropped. We want to prevent this so check the min number of events per category
+  ungroup()
+
+# Summarize the number of events for each feature, genotype, and condition
+event_counts <- df %>%
+  group_by(feature, genotype, condition) %>%
+  summarise(n = n(), .groups = "drop")
+
+# Display the result
+
+event_counts %>%
+  kable("html", caption = "Number of Events per Feature, Genotype, and Condition") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                font_size = 12) %>%
+  column_spec(1, bold = TRUE) %>%  # Make feature column bold
+  column_spec(4, color = "blue")     # Highlight the count column in red
+
+```
+
+
+
+### Assessment of all treatments in WTC11 iPSC line
+
+```{r, warning=FALSE, fig.align='center', out.width='100%', fig.width=6, fig.height=10}
+
+#grouped analysis
+
+vp1 <- df_filtered %>%
+  dplyr::filter(genotype == "WTC11") %>% 
+  grouped_ggbetweenstats(
+    ## arguments relevant for ggbetweenstats
+    x = condition,
+    y = mfi,
+    grouping.var = feature,
+    type = "np",  # Non-parametric test
+    xlab = "Treatment",
+    ylab = "Fluorescence Intensity",
+    pairwise.display = "none", ## display only significant pairwise comparisons
+    p.adjust.method = "fdr", ## adjust p-values for multiple tests using this method
+    results.subtitle = TRUE,
+    package = "khroma",
+    palette = "okabeito",
+    ## arguments relevant for combine_plots
+    annotation.args = list(title = "Assessment of H3K4 methylation marks in WTC11 iPSC lines"),
+    plotgrid.args = list(nrow = 3),
+     ggplot.component = list(
+          scale_color_manual(values =  c("#999999", "#0072B2", "#009E73", "#E69F00", "#D55E00", "#CC79A7", "#F0E442")),
+          theme( # Customizations
+            text = element_text(family = "Arial", size = 8, color = "black"),
+            plot.title = element_text(
+              family = "Arial",
+              size = 12,
+              face = "bold",
+              color = "#2a475e"
+            ),
+            plot.subtitle = element_text(
+              family = "Arial",
+              size = 8,
+              face = "bold",
+              color = "#1b2838"
+            ),
+            plot.title.position = "plot",
+            axis.text = element_text(size = 8, color = "black"),
+            axis.title = element_text(size = 8),
+            axis.ticks = element_blank(),
+            axis.line = element_line(colour = "grey50"),
+            panel.grid = element_line(color = "#b4aea9"),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.grid.major.y = element_line(linetype = "dashed"),
+            panel.background = element_rect(fill = "white", color = "white"),
+            plot.background = element_rect(fill = "white", color = "white")
+          )
+        )
+      )
+
+vp1
+
+ggsave("output/PNG/violin_WTC_treatments.png", width = 22, height = 24, units = "cm", dpi = 300)
+ggsave("output/SVG/violin_WTC_treatment.svg", plot = vp1, width = 22, height = 24, units = "cm")
+
+```
+
+
+```{r, warning=FALSE, fig.align='center', out.width='100%', fig.width=6, fig.height=10}
+#grouped analysis
+
+vp2 <- df_filtered %>%
+  dplyr::filter(genotype == "KMT2D10.4") %>% 
+  grouped_ggbetweenstats(
+    ## arguments relevant for ggbetweenstats
+    x = condition,
+    y = mfi,
+    grouping.var = feature,
+    type = "np",  # Non-parametric test
+    xlab = "Treatment",
+    ylab = "Fluorescence Intensity",
+    pairwise.display = "none", ## display only significant pairwise comparisons
+    p.adjust.method = "fdr", ## adjust p-values for multiple tests using this method
+    results.subtitle = TRUE,
+    package = "khroma",
+    palette = "okabeito",
+    ## arguments relevant for combine_plots
+    annotation.args = list(title = "Assessment of H3K4 methylation marks in KMT2D10.4 iPSC lines"),
+    plotgrid.args = list(nrow = 3),
+     ggplot.component = list(
+          scale_color_manual(values =  c("#999999", "#0072B2", "#009E73", "#E69F00", "#D55E00", "#CC79A7", "#F0E442")),
+          theme( # Customizations
+            text = element_text(family = "Arial", size = 8, color = "black"),
+            plot.title = element_text(
+              family = "Arial",
+              size = 12,
+              face = "bold",
+              color = "#2a475e"
+            ),
+            plot.subtitle = element_text(
+              family = "Arial",
+              size = 8,
+              face = "bold",
+              color = "#1b2838"
+            ),
+            plot.title.position = "plot",
+            axis.text = element_text(size = 8, color = "black"),
+            axis.title = element_text(size = 8),
+            axis.ticks = element_blank(),
+            axis.line = element_line(colour = "grey50"),
+            panel.grid = element_line(color = "#b4aea9"),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.grid.major.y = element_line(linetype = "dashed"),
+            panel.background = element_rect(fill = "white", color = "white"),
+            plot.background = element_rect(fill = "white", color = "white")
+          )
+        )
+      )
+
+vp2
+
+ggsave("output/PNG/violin_KMT_treatments.png", width = 22, height = 24, units = "cm", dpi = 300)
+ggsave("output/SVG/violin_KMT_treatment.svg", plot = vp2, width = 22, height = 24, units = "cm")
+```
 
 ::::
 
-:::
+
 
 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
 
 Session Information
 
 </button>
-
 :::: {#collapseOne .accordion-collapse .collapse}
 <div>
 
 ```{r}
 sessionInfo()
 ```
-
 </div>
 ::::
+
