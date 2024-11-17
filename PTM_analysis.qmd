@@ -2878,7 +2878,7 @@ ggsave("output/SVG/rainplot_plot_1.svg", plot = rp1, width = 18, height = 20, un
 
 ```
 
-## Drug Treatments to increase or decrease gloal H3K4 methylation marks
+## Drug Treatments to increase or decrease global H3K4 methylation marks
 
 ```{r, warning=FALSE}
 # Load data
